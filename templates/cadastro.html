@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Cadastro</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h2>Cadastrar</h2>
+
+    <form method="POST">
+
+        <div class="input-group">
+            <label>Nome</label>
+            <input type="text" name="nome" placeholder="Username" required>
+        </div>
+
+        <div class="input-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="Email" required>
+        </div>
+
+        <div class="input-group">
+            <label>Senha</label>
+            <input type="password" name="senha" placeholder="Password" required>
+        </div>
+
+        <button type="submit">Cadastrar</button>
+
+    </form>
+
+    <a href="/login">Já tenho conta</a>
+</div>
+
+</body>
+</html>

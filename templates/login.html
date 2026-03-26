@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h2>Login</h2>
+
+    <form method="POST">
+
+        <div class="input-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="Email" required>
+        </div>
+
+        <div class="input-group">
+            <label>Senha</label>
+            <input type="password" name="senha" placeholder="Password" required>
+        </div>
+
+        <button type="submit">Entrar</button>
+
+    </form>
+
+    <a href="/cadastro">Criar conta</a>
+</div>
+
+</body>
+</html>
