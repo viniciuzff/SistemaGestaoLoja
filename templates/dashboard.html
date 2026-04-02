@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+
+</head>
+<body>
+
+<div class="container">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <h2>🛒 Sistema Loja</h2>
+
+        <a href="#" class="active"><i class="fa fa-home"></i> Dashboard</a>
+        <a href="/clientes"><i class="fa fa-users"></i> Clientes</a>
+        <a href="#"><i class="fa fa-box"></i> Produtos</a>
+        <a href="#"><i class="fa fa-shopping-cart"></i> Vendas</a>
+        <a href="#"><i class="fa fa-warehouse"></i> Estoque</a>
+
+        <a href="/logout" class="logout"><i class="fa fa-sign-out"></i> Sair</a>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <div>
+                <p>Bem-vindo de volta,</p>
+                <strong>{{ session['usuario'] }}</strong>
+            </div>
+
+    
+        </div>
+
+        <!-- CARDS -->
+        <div class="cards">
+
+            <div class="card">
+                <h4>Total de Produtos</h4>
+                <h2>8</h2>
+                <span class="green">+12%</span>
+            </div>
+
+            <div class="card">
+                <h4>Total de Clientes</h4>
+                <h2>5</h2>
+                <span class="green">+8%</span>
+            </div>
+
+            <div class="card">
+                <h4>Total de Vendas</h4>
+                <h2>R$ 1249,10</h2>
+                <span class="green">+15%</span>
+            </div>
+
+            <div class="card">
+                <h4>Estoque Baixo</h4>
+                <h2>3</h2>
+                <span class="red">-3%</span>
+            </div>
+
+        </div>
+
+        <!-- GRÁFICO (simples fake) -->
+        <div class="box">
+            <h3>Vendas dos Últimos 7 Dias</h3>
+            <div class="chart"></div>
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

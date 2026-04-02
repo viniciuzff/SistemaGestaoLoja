@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Clientes</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+
+</head>
+<body>
+
+<div class="container">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <h2>🛒 Sistema Loja</h2>
+
+        <a href="/dashboard"><i class="fa fa-home"></i> Dashboard</a>
+        <a href="/clientes" class="active"><i class="fa fa-users"></i> Clientes</a>
+        <a href="#"><i class="fa fa-box"></i> Produtos</a>
+        <a href="#"><i class="fa fa-shopping-cart"></i> Vendas</a>
+        <a href="#"><i class="fa fa-warehouse"></i> Estoque</a>
+
+        <a href="/logout" class="logout"><i class="fa fa-sign-out"></i> Sair</a>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <div>
+                <p>Bem-vindo de volta,</p>
+                <strong>{{ session['usuario'] }}</strong>
+            </div>
+
+        
+        </div>
+
+        <!-- HEADER -->
+        <div class="page-header">
+            <div>
+                <h2>Clientes</h2>
+                <p>{{ clientes|length }} registrados</p>
+            </div>
+
+          <button class="btn" onclick="abrirModal()">
+                <span class="icon">+</span>
+                Novo Cliente
+            </button>
+        </div>
+
+        <!-- BUSCA -->
+        <input class="search" type="text" placeholder="Buscar cliente...">
+
+        <!-- TABELA -->
+        <div class="table-box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Telefone</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for c in clientes %}
+                    <tr>
+                        <td>{{ c[1] }}</td>
+                        <td>{{ c[2] }}</td>
+                        <td>{{ c[3] }}</td>
+                        <td class="actions">
+                        <button onclick="editarCliente('{{ c[0] }}','{{ c[1] }}','{{ c[2] }}','{{ c[3] }}')">
+                            <i class="fa fa-pen"></i>
+                        </button>
+                            <a href="/deletar_cliente/{{ c[0] }}" onclick="return confirmarExclusao()">
+                                <i class="fa fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </main>
+
+</div>
+
+<div id="modalCliente" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="fecharModal()">&times;</span>
+
+    <h2 id="tituloModal">Novo Cliente</h2>
+
+    <form id="formCliente" method="POST" action="/novo_cliente">
+      <input type="hidden" name="id" id="cliente_id">
+
+      <input type="text" name="nome" id="nome" placeholder="Nome" required>
+      <input type="email" name="email" id="email" placeholder="Email">
+      <input type="text" name="telefone" id="telefone" placeholder="Telefone">
+
+      <button type="submit">Salvar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function abrirModal() {
+    document.getElementById("modalCliente").style.display = "block";
+
+    document.getElementById("formCliente").action = "/novo_cliente";
+    document.getElementById("tituloModal").innerText = "Novo Cliente";
+
+    limparCampos();
+}
+
+function fecharModal() {
+    document.getElementById("modalCliente").style.display = "none";
+}
+
+function limparCampos() {
+    document.getElementById("cliente_id").value = "";
+    document.getElementById("nome").value = "";
+    document.getElementById("email").value = "";
+    document.getElementById("telefone").value = "";
+}
+
+function editarCliente(id, nome, email, telefone) {
+    abrirModal();
+
+    document.getElementById("tituloModal").innerText = "Editar Cliente";
+    document.getElementById("formCliente").action = "/editar_cliente";
+
+    document.getElementById("cliente_id").value = id;
+    document.getElementById("nome").value = nome;
+    document.getElementById("email").value = email;
+    document.getElementById("telefone").value = telefone;
+}
+</script>
+
+<script>
+function confirmarExclusao() {
+    return confirm("Tem certeza que deseja excluir este cliente?");
+}
+</script>
+</body>
+</html>

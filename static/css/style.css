@@ -1,6 +1,6 @@
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
+    font-family: 'Poppins', sans-serif;
     height: 100vh;
     background: linear-gradient(135deg, #2ecc71, #27ae60);
     display: flex;

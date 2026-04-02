@@ -14,12 +14,23 @@ def criar_banco():
     conn = sqlite3.connect('banco.db')
     cursor = conn.cursor()
 
+    # tabela vendedores
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS vendedores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         senha TEXT NOT NULL
+    )
+    """)
+
+    # tabela clientes
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS clientes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        email TEXT,
+        telefone TEXT
     )
     """)
 
@@ -78,14 +89,87 @@ def dashboard():
     if 'usuario' not in session:
         return redirect('/login')
 
-    return f"Bem-vindo, {session['usuario']}! <br><a href='/logout'>Sair</a>"
-
+    return render_template('dashboard.html')
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
 def logout():
     session.pop('usuario', None)
     return redirect('/login')
 
+@app.route('/clientes')
+def clientes():
+    if 'usuario' not in session:
+        return redirect('/login')
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM clientes")
+    clientes = cursor.fetchall()
+    conn.close()
+
+    return render_template('clientes.html', clientes=clientes)
+
+
+
+@app.route('/novo_cliente', methods=['GET', 'POST'])
+def novo_cliente():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        email = request.form['email']
+        telefone = request.form['telefone']
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO clientes (nome, email, telefone) VALUES (?, ?, ?)",
+                       (nome, email, telefone))
+        conn.commit()
+        conn.close()
+
+        return redirect('/clientes')
+
+    return render_template('novo_cliente.html')
+
+@app.route('/editar_cliente', methods=['POST'])
+def editar_cliente():
+    id = request.form['id']
+    nome = request.form['nome']
+    email = request.form['email']
+    telefone = request.form['telefone']
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE clientes
+        SET nome=?, email=?, telefone=?
+        WHERE id=?
+    """, (nome, email, telefone, id))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/clientes')
+    
+@app.route('/deletar_cliente/<int:id>')
+def deletar_cliente(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM clientes WHERE id = ?", (id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/clientes')
+
 # ---------------- START ----------------
 if __name__ == '__main__':
     app.run(debug=True)
+
+conn = get_db()
+cursor = conn.cursor()
+
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+print(cursor.fetchall())
+
+conn.close()
