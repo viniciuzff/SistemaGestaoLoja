@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Produtos</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+
+</head>
+<body>
+
+<div class="container">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <h2>🛒 Sistema Loja</h2>
+
+        <a href="/dashboard"><i class="fa fa-home"></i> Dashboard</a>
+        <a href="/clientes"><i class="fa fa-users"></i> Clientes</a>
+        <a href="/produtos" class="active"><i class="fa fa-box"></i> Produtos</a>
+        <a href="#"><i class="fa fa-shopping-cart"></i> Vendas</a>
+        <a href="#"><i class="fa fa-warehouse"></i> Estoque</a>
+
+        <a href="/logout" class="logout"><i class="fa fa-sign-out"></i> Sair</a>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <div>
+                <p>Bem-vindo de volta,</p>
+                <strong>{{ session['usuario'] }}</strong>
+            </div>
+        </div>
+
+        <!-- HEADER -->
+        <div class="page-header">
+            <div>
+                <h2>Produtos</h2>
+                <p>{{ produtos|length }} registrados</p>
+            </div>
+
+            <button class="btn" onclick="abrirModal()">
+                <span class="icon">+</span>
+                Novo Produto
+            </button>
+        </div>
+
+        <!-- BUSCA -->
+       <form method="GET" action="/produtos">
+        
+       <input 
+            class="search" 
+            type="text" 
+            name="busca"
+            placeholder="Buscar produto..."
+            value="{{ request.args.get('busca', '') }}"
+            onkeypress="if(event.key === 'Enter') this.form.submit();"
+        >
+        </form> 
+
+        <!-- TABELA -->
+        <div class="table-box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Categoria</th>
+                        <th>Preço</th>
+                        <th>Quantidade</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for p in produtos %}
+                    <tr>
+                        <td>{{ p[1] }}</td>
+                        <td>{{ p[2] }}</td>
+                        <td>R$ {{ p[3] }}</td>
+
+                        <!-- estoque com alerta -->
+                        <td class="{% if (p[5] or 0) <= (p[6] or 0) %}estoque-baixo{% else %}estoque-normal{% endif %}">
+                            {{ p[5] }}
+                        </td>
+
+                        <td>{{ p[7] }}</td>
+
+                        <td class="actions">
+                            <button onclick="editarProduto('{{ p[0] }}','{{ p[1] }}','{{ p[2] }}','{{ p[3] }}','{{ p[4] }}','{{ p[5] }}','{{ p[6] }}','{{ p[7] }}')">
+                                <i class="fa fa-pen"></i>
+                            </button>
+
+                            <a href="/deletar_produto/{{ p[0] }}" onclick="return confirmarExclusao()">
+                                <i class="fa fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </main>
+
+</div>
+
+<!-- MODAL -->
+<div id="modalProduto" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="fecharModal()">&times;</span>
+
+    <h2 id="tituloModal">Novo Produto</h2>
+
+    <form id="formProduto" method="POST" action="/novo_produto">
+      <input type="hidden" name="id" id="produto_id">
+
+      <input type="text" name="nome" id="nome" placeholder="Nome" required>
+
+      <select name="categoria" id="categoria">
+        <option value="">Categoria</option>
+        <option value="Vestuário">Vestuário</option>
+        <option value="Calçados">Calçados</option>
+        <option value="Acessórios">Acessórios</option>
+      </select>
+
+      <input type="number" name="preco_venda" id="preco_venda" placeholder="Preço de Venda" step="0.01" required>
+      <input type="number" name="preco_custo" id="preco_custo" placeholder="Preço de Custo" step="0.01">
+
+      <input type="number" name="quantidade" id="quantidade" placeholder="Quantidade" required>
+      <input type="number" name="estoque_minimo" id="estoque_minimo" placeholder="Estoque Mínimo">
+
+      <select name="status" id="status">
+        <option value="Ativo">Ativo</option>
+        <option value="Inativo">Inativo</option>
+      </select>
+
+      <button type="submit">Salvar</button>
+    </form>
+  </div>
+</div>
+
+<!-- JS -->
+<script>
+function abrirModal() {
+    document.getElementById("modalProduto").style.display = "block";
+
+    document.getElementById("formProduto").action = "/novo_produto";
+    document.getElementById("tituloModal").innerText = "Novo Produto";
+
+    limparCampos();
+}
+
+function fecharModal() {
+    document.getElementById("modalProduto").style.display = "none";
+}
+
+function limparCampos() {
+    document.getElementById("produto_id").value = "";
+    document.getElementById("nome").value = "";
+    document.getElementById("categoria").value = "";
+    document.getElementById("preco_venda").value = "";
+    document.getElementById("preco_custo").value = "";
+    document.getElementById("quantidade").value = "";
+    document.getElementById("estoque_minimo").value = "";
+    document.getElementById("status").value = "Ativo";
+}
+
+function editarProduto(id, nome, categoria, preco_venda, preco_custo, quantidade, estoque_minimo, status) {
+    abrirModal();
+
+    document.getElementById("tituloModal").innerText = "Editar Produto";
+    document.getElementById("formProduto").action = "/editar_produto/" + id;
+
+    document.getElementById("produto_id").value = id;
+    document.getElementById("nome").value = nome;
+    document.getElementById("categoria").value = categoria;
+    document.getElementById("preco_venda").value = preco_venda;
+    document.getElementById("preco_custo").value = preco_custo;
+    document.getElementById("quantidade").value = quantidade;
+    document.getElementById("estoque_minimo").value = estoque_minimo;
+    document.getElementById("status").value = status;
+}
+
+function confirmarExclusao() {
+    return confirm("Tem certeza que deseja excluir este produto?");
+}
+</script>
+
+</body>
+</html>
