@@ -65,3 +65,8 @@ a {
     color: #333;
     text-decoration: none;
 }
+
+.status-pendente {
+    background: #f1c40f;
+    color: white;
+}

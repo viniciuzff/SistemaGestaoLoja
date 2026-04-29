@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'segredo123'
@@ -45,6 +46,28 @@ def criar_banco():
         quantidade INTEGER,
         estoque_minimo INTEGER,
         status TEXT
+    )
+    """)
+
+        # TABELA VENDAS
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS vendas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente TEXT,
+        data TEXT,
+        pagamento TEXT,
+        status TEXT,
+        total REAL
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS itens_venda (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        venda_id INTEGER,
+        produto_id INTEGER,
+        quantidade INTEGER,
+        preco REAL
     )
     """)
 
@@ -267,6 +290,103 @@ def deletar_produto(id):
 
     return redirect('/produtos')
 
+# ---------------- VENDAS ----------------
+@app.route('/vendas')
+def vendas():
+    if 'usuario' not in session:
+        return redirect('/login')
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM vendas ORDER BY id DESC")
+    vendas = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM clientes")
+    clientes = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM produtos WHERE status = 'Ativo'")
+    produtos = cursor.fetchall()
+
+    conn.close()
+
+    return render_template(
+        'vendas.html',
+        vendas=vendas,
+        clientes=clientes,
+        produtos=produtos
+    )
+
+
+# ---------------- NOVA VENDA ----------------
+@app.route('/nova_venda', methods=['POST'])
+def nova_venda():
+    cliente = request.form.get('cliente')
+    if not cliente:
+        cliente = "Não informado"
+
+    produto_id = request.form['produto_id']
+    quantidade = int(request.form['quantidade'])
+    pagamento = request.form['pagamento']
+    status = request.form['status']
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # pegar produto
+    cursor.execute("SELECT nome, preco_venda, quantidade FROM produtos WHERE id = ?", (produto_id,))
+    produto = cursor.fetchone()
+
+    if not produto:
+        return "Produto não encontrado"
+
+    nome_produto, preco, estoque = produto
+
+    # validar estoque
+    if quantidade > estoque:
+        return "Estoque insuficiente"
+
+    total = preco * quantidade
+    data = datetime.now().strftime('%d/%m/%Y')
+
+    # salvar venda
+    cursor.execute("""
+        INSERT INTO vendas (cliente, data, pagamento, status, total)
+        VALUES (?, ?, ?, ?, ?)
+    """, (cliente, data, pagamento, status, total))
+
+    venda_id = cursor.lastrowid
+
+    # salvar item da venda
+    cursor.execute("""
+        INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco)
+        VALUES (?, ?, ?, ?)
+    """, (venda_id, produto_id, quantidade, preco))
+
+    # 🔥 BAIXAR ESTOQUE CORRETO
+    cursor.execute("""
+        UPDATE produtos
+        SET quantidade = quantidade - ?
+        WHERE id = ?
+    """, (quantidade, produto_id))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/vendas')
+
+# ---------------- DELETAR VENDA ----------------
+@app.route('/deletar_venda/<int:id>')
+def deletar_venda(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM vendas WHERE id = ?", (id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/vendas')
 # ---------------- START ----------------
 if __name__ == '__main__':
     app.run(debug=True)

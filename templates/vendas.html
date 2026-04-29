@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Vendas</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+
+</head>
+<body>
+
+<div class="container">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+    <h2>🛒 Sistema Loja</h2>
+
+    <a href="/dashboard"><i class="fa fa-home"></i> Dashboard</a>
+    <a href="/clientes"><i class="fa fa-users"></i> Clientes</a>
+    <a href="/produtos"><i class="fa fa-box"></i> Produtos</a>
+    <a href="/vendas" class="active"><i class="fa fa-shopping-cart"></i> Vendas</a>
+    <a href="#"><i class="fa fa-warehouse"></i> Estoque</a>
+
+    <a href="/logout" class="logout"><i class="fa fa-sign-out"></i> Sair</a>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- TOPBAR -->
+<div class="topbar">
+    <div>
+        <p>Bem-vindo de volta,</p>
+        <strong>{{ session['usuario'] }}</strong>
+    </div>
+</div>
+
+<!-- HEADER -->
+<div class="page-header">
+    <div>
+        <h2>Vendas</h2>
+        <p>{{ vendas|length }} registradas</p>
+    </div>
+
+    <button class="btn" onclick="abrirModal()">
+        + Nova Venda
+    </button>
+</div>
+
+<!-- BUSCA -->
+<form method="GET" action="/vendas" class="search-box">
+    <i class="fa fa-search"></i>
+    <input 
+        type="text" 
+        name="busca"
+        placeholder="Buscar por cliente..."
+        value="{{ request.args.get('busca', '') }}"
+    >
+</form>
+
+<!-- TABELA -->
+<div class="table-box">
+
+{% if vendas|length == 0 %}
+    <p style="text-align:center; padding:20px;">
+        Nenhuma venda registrada.<br>
+        Clique em <strong>Nova Venda</strong> para começar.
+    </p>
+{% else %}
+
+<table>
+    <thead>
+        <tr>
+            <th>Cliente</th>
+            <th>Data</th>
+            <th>Pagamento</th>
+            <th>Status</th>
+            <th style="text-align:right;">Total</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for v in vendas %}
+        <tr>
+            <td>{{ v[1] }}</td>
+            <td>{{ v[2] }}</td>
+            <td>{{ v[3] }}</td>
+
+            <td>
+                <span class="
+                    status 
+                    {% if v[4] == 'Concluída' %}status-ativo
+                    {% elif v[4] == 'Pendente' %}status-pendente
+                    {% else %}status-inativo{% endif %}
+                ">
+                    {{ v[4] }}
+                </span>
+            </td>
+
+            <td style="text-align:right;">R$ {{ v[5] }}</td>
+
+            <td class="actions">
+                <a href="/deletar_venda/{{ v[0] }}" onclick="return confirmarExclusao()">
+                    <i class="fa fa-trash"></i>
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endif %}
+
+</div>
+
+</main>
+</div>
+
+<!-- MODAL -->
+<div id="modalVenda" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="fecharModal()">&times;</span>
+
+    <h2>Nova Venda</h2>
+
+    <form method="POST" action="/nova_venda">
+
+<!-- CLIENTE -->
+<select name="cliente">
+    <option value="">Sem cliente</option>
+    {% for c in clientes %}
+        <option value="{{ c[1] }}">{{ c[1] }}</option>
+    {% endfor %}
+</select>
+
+<!-- PRODUTO -->
+<select name="produto_id" required>
+    <option value="">Selecione o produto</option>
+    {% for p in produtos %}
+        <option value="{{ p[0] }}">
+            {{ p[1] }} (R$ {{ p[3] }}) - Estoque: {{ p[5] }}
+        </option>
+    {% endfor %}
+</select>
+
+<!-- QUANTIDADE -->
+<input type="number" name="quantidade" placeholder="Quantidade" required>
+
+<!-- PAGAMENTO -->
+<select name="pagamento" required>
+    <option>Dinheiro</option>
+    <option>Cartão de Crédito</option>
+    <option>Cartão de Débito</option>
+    <option>PIX</option>
+</select>
+
+<!-- STATUS -->
+<select name="status">
+    <option value="Concluída">Concluída</option>
+    <option value="Pendente">Pendente</option>
+    <option value="Cancelada">Cancelada</option>
+</select>
+
+<button type="submit">Registrar Venda</button>
+
+</form>
+  </div>
+</div>
+
+<script>
+function abrirModal() {
+    document.getElementById("modalVenda").style.display = "block";
+}
+
+function fecharModal() {
+    document.getElementById("modalVenda").style.display = "none";
+}
+
+function confirmarExclusao() {
+    return confirm("Deseja excluir esta venda?");
+}
+</script>
+
+</body>
+</html>
