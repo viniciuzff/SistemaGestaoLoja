@@ -1,21 +1,21 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, request, session, jsonify
+from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'segredo123'
+CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 
-# conexão
+# ---------------- BANCO ----------------
 def get_db():
     return sqlite3.connect('banco.db')
 
-# criar banco
 def criar_banco():
     conn = sqlite3.connect('banco.db')
     cursor = conn.cursor()
 
-    # tabela vendedores
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS vendedores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +25,6 @@ def criar_banco():
     )
     """)
 
-    # tabela clientes
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS clientes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +34,6 @@ def criar_banco():
     )
     """)
 
-        # tabela Produtos
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS produtos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +47,6 @@ def criar_banco():
     )
     """)
 
-        # TABELA VENDAS
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS vendas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,325 +73,371 @@ def criar_banco():
 
 criar_banco()
 
-# ---------------- CADASTRO ----------------
-@app.route('/cadastro', methods=['GET', 'POST'])
+# ---------------- AUTH ----------------
+@app.route('/api/cadastro', methods=['POST'])
 def cadastro():
-    if request.method == 'POST':
-        nome = request.form['nome']
-        email = request.form['email']
-        senha = generate_password_hash(request.form['senha'])
+    data = request.get_json()
+    nome = data.get('nome')
+    email = data.get('email')
+    senha = generate_password_hash(data.get('senha'))
 
-        try:
-            conn = get_db()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO vendedores (nome, email, senha) VALUES (?, ?, ?)",
-                           (nome, email, senha))
-            conn.commit()
-            conn.close()
-
-            return redirect('/login')
-
-        except:
-            return "Erro: email já cadastrado"
-
-    return render_template('cadastro.html')
-
-# ---------------- LOGIN ----------------
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        senha = request.form['senha']
-
+    try:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM vendedores WHERE email = ?", (email,))
-        user = cursor.fetchone()
-        conn.close()
-
-        if user and check_password_hash(user[3], senha):
-            session['usuario'] = user[1]
-            return redirect('/dashboard')
-
-        return "Login inválido"
-
-    return render_template('login.html')
-
-# ---------------- DASHBOARD ----------------
-@app.route('/dashboard')
-def dashboard():
-    if 'usuario' not in session:
-        return redirect('/login')
-
-    return render_template('dashboard.html')
-# ---------------- LOGOUT ----------------
-@app.route('/logout')
-def logout():
-    session.pop('usuario', None)
-    return redirect('/login')
-
-# ---------------- CLIENTES ----------------
-@app.route('/clientes')
-def clientes():
-    if 'usuario' not in session:
-        return redirect('/login')
-
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM clientes")
-    clientes = cursor.fetchall()
-    conn.close()
-
-    return render_template('clientes.html', clientes=clientes)
-
-
-# ---------------- NOVO CLIENTE ----------------
-@app.route('/novo_cliente', methods=['GET', 'POST'])
-def novo_cliente():
-    if request.method == 'POST':
-        nome = request.form['nome']
-        email = request.form['email']
-        telefone = request.form['telefone']
-
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO clientes (nome, email, telefone) VALUES (?, ?, ?)",
-                       (nome, email, telefone))
+        cursor.execute(
+            "INSERT INTO vendedores (nome, email, senha) VALUES (?, ?, ?)",
+            (nome, email, senha)
+        )
         conn.commit()
         conn.close()
+        return jsonify({'ok': True, 'mensagem': 'Cadastro realizado com sucesso'})
+    except:
+        return jsonify({'ok': False, 'erro': 'Email já cadastrado'}), 409
 
-        return redirect('/clientes')
 
-    return render_template('novo_cliente.html')
-
-# ---------------- EDITAR CLIENTE ----------------
-@app.route('/editar_cliente', methods=['POST'])
-def editar_cliente():
-    id = request.form['id']
-    nome = request.form['nome']
-    email = request.form['email']
-    telefone = request.form['telefone']
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    senha = data.get('senha')
 
     conn = get_db()
     cursor = conn.cursor()
+    cursor.execute("SELECT * FROM vendedores WHERE email = ?", (email,))
+    user = cursor.fetchone()
+    conn.close()
+
+    if user and check_password_hash(user[3], senha):
+        session['usuario'] = user[1]
+        session['usuario_id'] = user[0]
+        return jsonify({'ok': True, 'nome': user[1]})
+
+    return jsonify({'ok': False, 'erro': 'Email ou senha inválidos'}), 401
+
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/me')
+def me():
+    if 'usuario' not in session:
+        return jsonify({'autenticado': False}), 401
+    return jsonify({'autenticado': True, 'nome': session['usuario']})
+
+
+# ---------------- DASHBOARD ----------------
+@app.route('/api/dashboard')
+def dashboard():
+    if 'usuario' not in session:
+        return jsonify({'erro': 'Não autorizado'}), 401
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*) FROM clientes")
+    total_clientes = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM produtos")
+    total_produtos = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM vendas")
+    total_vendas = cursor.fetchone()[0]
+
+    cursor.execute("SELECT SUM(total) FROM vendas")
+    faturamento = cursor.fetchone()[0] or 0
 
     cursor.execute("""
-        UPDATE clientes
-        SET nome=?, email=?, telefone=?
-        WHERE id=?
-    """, (nome, email, telefone, id))
+        SELECT id, nome, quantidade, estoque_minimo
+        FROM produtos
+        WHERE quantidade <= estoque_minimo
+    """)
+    estoque_baixo = [
+        {'id': r[0], 'nome': r[1], 'quantidade': r[2], 'estoque_minimo': r[3]}
+        for r in cursor.fetchall()
+    ]
 
-    conn.commit()
+    cursor.execute("SELECT * FROM vendas ORDER BY id DESC LIMIT 5")
+    vendas_recentes = [
+        {'id': r[0], 'cliente': r[1], 'data': r[2],
+         'pagamento': r[3], 'status': r[4], 'total': r[5]}
+        for r in cursor.fetchall()
+    ]
+
     conn.close()
 
-    return redirect('/clientes')
-
-# ---------------- DELETAR CLIENTE ----------------
-@app.route('/deletar_cliente/<int:id>')
-def deletar_cliente(id):
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute("DELETE FROM clientes WHERE id = ?", (id,))
-
-    conn.commit()
-    conn.close()
-
-    return redirect('/clientes')
+    return jsonify({
+        'total_clientes': total_clientes,
+        'total_produtos': total_produtos,
+        'total_vendas': total_vendas,
+        'faturamento': round(faturamento, 2),
+        'estoque_baixo': estoque_baixo,
+        'vendas_recentes': vendas_recentes,
+    })
 
 
-# ---------------- PRODUTOS ----------------
-@app.route('/produtos')
-def produtos():
+# ---------------- CLIENTES ----------------
+@app.route('/api/clientes', methods=['GET'])
+def listar_clientes():
     if 'usuario' not in session:
-        return redirect('/login')
+        return jsonify({'erro': 'Não autorizado'}), 401
 
-    busca = request.args.get('busca')
-
+    busca = request.args.get('busca', '')
     conn = get_db()
     cursor = conn.cursor()
 
     if busca:
         cursor.execute(
-            "SELECT * FROM produtos WHERE nome LIKE ?", 
+            "SELECT * FROM clientes WHERE nome LIKE ?",
             ('%' + busca + '%',)
         )
     else:
-        cursor.execute("SELECT * FROM produtos")
+        cursor.execute("SELECT * FROM clientes")
 
-    produtos = cursor.fetchall()
+    clientes = [
+        {'id': r[0], 'nome': r[1], 'email': r[2], 'telefone': r[3]}
+        for r in cursor.fetchall()
+    ]
     conn.close()
+    return jsonify(clientes)
 
-    return render_template('produtos.html', produtos=produtos)
 
-# ---------------- NOVO PRODUTO ----------------
-@app.route('/novo_produto', methods=['POST'])
-def novo_produto():
-    nome = request.form['nome']
-    categoria = request.form['categoria']
-    preco_venda = request.form['preco_venda']
-    preco_custo = request.form['preco_custo']
-    quantidade = request.form['quantidade']
-    estoque_minimo = request.form['estoque_minimo']
-    status = request.form['status']
+@app.route('/api/clientes', methods=['POST'])
+def criar_cliente():
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO clientes (nome, email, telefone) VALUES (?, ?, ?)",
+        (data['nome'], data.get('email'), data.get('telefone'))
+    )
+    conn.commit()
+    novo_id = cursor.lastrowid
+    conn.close()
+    return jsonify({'ok': True, 'id': novo_id}), 201
+
+
+@app.route('/api/clientes/<int:id>', methods=['PUT'])
+def editar_cliente(id):
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE clientes SET nome=?, email=?, telefone=? WHERE id=?",
+        (data['nome'], data.get('email'), data.get('telefone'), id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/clientes/<int:id>', methods=['DELETE'])
+def deletar_cliente(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM clientes WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+# ---------------- PRODUTOS ----------------
+@app.route('/api/produtos', methods=['GET'])
+def listar_produtos():
+    if 'usuario' not in session:
+        return jsonify({'erro': 'Não autorizado'}), 401
+
+    busca = request.args.get('busca', '')
+    apenas_ativos = request.args.get('ativos', 'false') == 'true'
 
     conn = get_db()
     cursor = conn.cursor()
 
+    query = "SELECT * FROM produtos WHERE 1=1"
+    params = []
+
+    if busca:
+        query += " AND nome LIKE ?"
+        params.append('%' + busca + '%')
+
+    if apenas_ativos:
+        query += " AND status = 'Ativo'"
+
+    cursor.execute(query, params)
+    produtos = [
+        {
+            'id': r[0], 'nome': r[1], 'categoria': r[2],
+            'preco_venda': r[3], 'preco_custo': r[4],
+            'quantidade': r[5], 'estoque_minimo': r[6], 'status': r[7]
+        }
+        for r in cursor.fetchall()
+    ]
+    conn.close()
+    return jsonify(produtos)
+
+
+@app.route('/api/produtos', methods=['POST'])
+def criar_produto():
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO produtos 
+        INSERT INTO produtos
         (nome, categoria, preco_venda, preco_custo, quantidade, estoque_minimo, status)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (nome, categoria, preco_venda, preco_custo, quantidade, estoque_minimo, status))
-
+    """, (
+        data['nome'], data.get('categoria'),
+        data.get('preco_venda'), data.get('preco_custo'),
+        data.get('quantidade'), data.get('estoque_minimo'),
+        data.get('status', 'Ativo')
+    ))
     conn.commit()
+    novo_id = cursor.lastrowid
     conn.close()
+    return jsonify({'ok': True, 'id': novo_id}), 201
 
-    return redirect('/produtos')
 
-# ---------------- EDITAR PRODUTO ----------------
-@app.route('/editar_produto/<int:id>', methods=['POST'])
+@app.route('/api/produtos/<int:id>', methods=['PUT'])
 def editar_produto(id):
-    nome = request.form['nome']
-    categoria = request.form['categoria']
-    preco_venda = request.form['preco_venda']
-    preco_custo = request.form['preco_custo']
-    quantidade = request.form['quantidade']
-    estoque_minimo = request.form['estoque_minimo']
-    status = request.form['status']
-
+    data = request.get_json()
     conn = get_db()
     cursor = conn.cursor()
-
     cursor.execute("""
         UPDATE produtos SET
-        nome=?, categoria=?, preco_venda=?, preco_custo=?, quantidade=?, estoque_minimo=?, status=?
+        nome=?, categoria=?, preco_venda=?, preco_custo=?,
+        quantidade=?, estoque_minimo=?, status=?
         WHERE id=?
-    """, (nome, categoria, preco_venda, preco_custo, quantidade, estoque_minimo, status, id))
-
+    """, (
+        data['nome'], data.get('categoria'),
+        data.get('preco_venda'), data.get('preco_custo'),
+        data.get('quantidade'), data.get('estoque_minimo'),
+        data.get('status', 'Ativo'), id
+    ))
     conn.commit()
     conn.close()
+    return jsonify({'ok': True})
 
-    return redirect('/produtos')
 
-# ---------------- DELETAR PRODUTO ----------------
-@app.route('/deletar_produto/<int:id>')
+@app.route('/api/produtos/<int:id>', methods=['DELETE'])
 def deletar_produto(id):
     conn = get_db()
     cursor = conn.cursor()
-
     cursor.execute("DELETE FROM produtos WHERE id = ?", (id,))
-
     conn.commit()
     conn.close()
+    return jsonify({'ok': True})
 
-    return redirect('/produtos')
 
 # ---------------- VENDAS ----------------
-@app.route('/vendas')
-def vendas():
+@app.route('/api/vendas', methods=['GET'])
+def listar_vendas():
     if 'usuario' not in session:
-        return redirect('/login')
+        return jsonify({'erro': 'Não autorizado'}), 401
 
     conn = get_db()
     cursor = conn.cursor()
-
     cursor.execute("SELECT * FROM vendas ORDER BY id DESC")
-    vendas = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM clientes")
-    clientes = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM produtos WHERE status = 'Ativo'")
-    produtos = cursor.fetchall()
-
+    vendas = [
+        {'id': r[0], 'cliente': r[1], 'data': r[2],
+         'pagamento': r[3], 'status': r[4], 'total': r[5]}
+        for r in cursor.fetchall()
+    ]
     conn.close()
-
-    return render_template(
-        'vendas.html',
-        vendas=vendas,
-        clientes=clientes,
-        produtos=produtos
-    )
+    return jsonify(vendas)
 
 
-# ---------------- NOVA VENDA ----------------
-@app.route('/nova_venda', methods=['POST'])
-def nova_venda():
-    cliente = request.form.get('cliente')
-    if not cliente:
-        cliente = "Não informado"
+@app.route('/api/vendas', methods=['POST'])
+def criar_venda():
+    data = request.get_json()
 
-    produto_id = request.form['produto_id']
-    quantidade = int(request.form['quantidade'])
-    pagamento = request.form['pagamento']
-    status = request.form['status']
+    cliente = data.get('cliente') or 'Não informado'
+    produto_id = data['produto_id']
+    quantidade = int(data['quantidade'])
+    pagamento = data['pagamento']
+    status = data.get('status', 'Concluída')
 
     conn = get_db()
     cursor = conn.cursor()
 
-    # pegar produto
-    cursor.execute("SELECT nome, preco_venda, quantidade FROM produtos WHERE id = ?", (produto_id,))
+    cursor.execute(
+        "SELECT nome, preco_venda, quantidade FROM produtos WHERE id = ?",
+        (produto_id,)
+    )
     produto = cursor.fetchone()
 
     if not produto:
-        return "Produto não encontrado"
+        conn.close()
+        return jsonify({'ok': False, 'erro': 'Produto não encontrado'}), 404
 
     nome_produto, preco, estoque = produto
 
-    # validar estoque
     if quantidade > estoque:
-        return "Estoque insuficiente"
+        conn.close()
+        return jsonify({'ok': False, 'erro': 'Estoque insuficiente'}), 400
 
-    total = preco * quantidade
-    data = datetime.now().strftime('%d/%m/%Y')
+    total = round(preco * quantidade, 2)
+    data_venda = datetime.now().strftime('%d/%m/%Y')
 
-    # salvar venda
     cursor.execute("""
         INSERT INTO vendas (cliente, data, pagamento, status, total)
         VALUES (?, ?, ?, ?, ?)
-    """, (cliente, data, pagamento, status, total))
+    """, (cliente, data_venda, pagamento, status, total))
 
     venda_id = cursor.lastrowid
 
-    # salvar item da venda
     cursor.execute("""
         INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco)
         VALUES (?, ?, ?, ?)
     """, (venda_id, produto_id, quantidade, preco))
 
-    # 🔥 BAIXAR ESTOQUE CORRETO
     cursor.execute("""
-        UPDATE produtos
-        SET quantidade = quantidade - ?
-        WHERE id = ?
+        UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?
     """, (quantidade, produto_id))
 
     conn.commit()
     conn.close()
 
-    return redirect('/vendas')
+    return jsonify({'ok': True, 'id': venda_id, 'total': total}), 201
 
-# ---------------- DELETAR VENDA ----------------
-@app.route('/deletar_venda/<int:id>')
+
+@app.route('/api/vendas/<int:id>', methods=['DELETE'])
 def deletar_venda(id):
     conn = get_db()
     cursor = conn.cursor()
-
     cursor.execute("DELETE FROM vendas WHERE id = ?", (id,))
-
     conn.commit()
     conn.close()
+    return jsonify({'ok': True})
 
-    return redirect('/vendas')
+
+# ---------------- ESTOQUE ----------------
+@app.route('/api/estoque', methods=['GET'])
+def estoque():
+    if 'usuario' not in session:
+        return jsonify({'erro': 'Não autorizado'}), 401
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, nome, categoria, quantidade, estoque_minimo, status
+        FROM produtos
+        ORDER BY quantidade ASC
+    """)
+    produtos = [
+        {
+            'id': r[0], 'nome': r[1], 'categoria': r[2],
+            'quantidade': r[3], 'estoque_minimo': r[4],
+            'status': r[5],
+            'baixo': r[3] <= r[4]
+        }
+        for r in cursor.fetchall()
+    ]
+    conn.close()
+    return jsonify(produtos)
+
+
 # ---------------- START ----------------
 if __name__ == '__main__':
     app.run(debug=True)
-
-conn = get_db()
-cursor = conn.cursor()
-
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-print(cursor.fetchall())
-
-conn.close()
