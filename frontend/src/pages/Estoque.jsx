@@ -1,64 +1,80 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-const api = (cfg) => axios({ withCredentials: true, ...cfg })
+const api = cfg => axios({ withCredentials: true, ...cfg })
 
 export default function Estoque() {
   const [produtos, setProdutos] = useState([])
-  const [filtro, setFiltro] = useState('todos')
+  const [filtro, setFiltro]     = useState('todos')
+  const [busca, setBusca]       = useState('')
 
   useEffect(() => {
-    api({ url: '/api/estoque' }).then(r => setProdutos(r.data))
+    api({ url:'/api/estoque' }).then(r => setProdutos(r.data))
   }, [])
 
-  const filtrados = produtos.filter(p => {
-    if (filtro === 'baixo') return p.baixo
-    if (filtro === 'ok') return !p.baixo
-    return true
-  })
+  const filtrados = produtos
+    .filter(p => filtro === 'todos' ? true : filtro === 'baixo' ? p.baixo : !p.baixo)
+    .filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()))
 
   const totalBaixo = produtos.filter(p => p.baixo).length
+  const totalOk    = produtos.filter(p => !p.baixo).length
 
-  const filtros = [
-    { valor: 'todos', label: 'Todos' },
-    { valor: 'baixo', label: '⚠️ Estoque Baixo' },
-    { valor: 'ok',    label: '✅ Estoque OK' },
-  ]
+  const focus = e => { e.target.style.borderColor='#16A34A'; e.target.style.boxShadow='0 0 0 3px rgba(22,163,74,0.12)' }
+  const blur  = e => { e.target.style.borderColor='#E5E7EB'; e.target.style.boxShadow='none' }
 
   return (
-    <div style={s.page}>
-      <div style={s.pageHeader}>
-        <div>
-          <h2 style={s.pageTitle}>Estoque</h2>
-          <p style={s.pageSub}>{produtos.length} produtos cadastrados</p>
-        </div>
-        {totalBaixo > 0 && (
-          <div style={s.alerta}>
-            ⚠️ {totalBaixo} produto{totalBaixo > 1 ? 's' : ''} com estoque baixo
+    <div>
+      {/* SUMMARY CARDS */}
+      <div style={s.summaryRow}>
+        <div style={s.summaryCard}>
+          <span style={{ fontSize:22 }}></span>
+          <div>
+            <p style={s.summaryLabel}>Total de Produtos</p>
+            <p style={s.summaryValue}>{produtos.length}</p>
           </div>
-        )}
+        </div>
+        <div style={{ ...s.summaryCard, borderLeft:'3px solid #22C55E' }}>
+          <span style={{ fontSize:22 }}></span>
+          <div>
+            <p style={s.summaryLabel}>Estoque Normal</p>
+            <p style={{ ...s.summaryValue, color:'#16A34A' }}>{totalOk}</p>
+          </div>
+        </div>
+        <div style={{ ...s.summaryCard, borderLeft:'3px solid #EF4444' }}>
+          <span style={{ fontSize:22 }}></span>
+          <div>
+            <p style={s.summaryLabel}>Estoque Baixo</p>
+            <p style={{ ...s.summaryValue, color:'#DC2626' }}>{totalBaixo}</p>
+          </div>
+        </div>
       </div>
 
-      {/* FILTROS */}
-      <div style={s.filtros}>
-        {filtros.map(f => (
-          <button key={f.valor}
-            style={{ ...s.filtroBtn, ...(filtro === f.valor ? s.filtroBtnAtivo : {}) }}
-            onClick={() => setFiltro(f.valor)}
-            onMouseEnter={e => { if (filtro !== f.valor) e.currentTarget.style.borderColor = '#3B7C5F' }}
-            onMouseLeave={e => { if (filtro !== f.valor) e.currentTarget.style.borderColor = '#EFEFEF' }}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* CONTROLS */}
+      <div style={s.controls}>
+        <div style={s.filtros}>
+          {[
+            { v:'todos', label:`Todos (${produtos.length})` },
+            { v:'baixo', label:` Baixo (${totalBaixo})` },
+            { v:'ok',    label:` Normal (${totalOk})` },
+          ].map(f => (
+            <button key={f.v} style={{ ...s.filtroBtn, ...(filtro===f.v ? s.filtroBtnAtivo : {}) }}
+              onClick={() => setFiltro(f.v)}
+            >{f.label}</button>
+          ))}
+        </div>
+        <div style={s.searchWrap}>
+          <span style={s.searchIcon}></span>
+          <input style={s.searchInput} placeholder="Buscar produto..."
+            value={busca} onChange={e => setBusca(e.target.value)} onFocus={focus} onBlur={blur} />
+        </div>
       </div>
 
-      {/* TABELA */}
-      <div style={s.tableBox}>
+      {/* TABLE */}
+      <div style={s.tableWrap}>
         <table style={s.table}>
           <thead>
             <tr style={s.thead}>
-              {['Produto', 'Categoria', 'Quantidade', 'Estoque Mínimo', 'Status', 'Situação'].map(h => (
+              {['Produto','Categoria','Quantidade / Progresso','Mínimo','Status','Situação'].map(h => (
                 <th key={h} style={s.th}>{h}</th>
               ))}
             </tr>
@@ -66,47 +82,40 @@ export default function Estoque() {
           <tbody>
             {filtrados.length === 0
               ? <tr><td colSpan={6} style={s.empty}>Nenhum produto encontrado.</td></tr>
-              : filtrados.map(p => (
-                <tr key={p.id}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F5F5F5'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <td style={s.td}><strong style={{ color: '#333333' }}>{p.nome}</strong></td>
-                  <td style={s.td}>{p.categoria}</td>
-                  <td style={s.td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontWeight: 600, color: p.baixo ? '#EF4444' : '#22C55E', minWidth: 28 }}>
-                        {p.quantidade}
-                      </span>
-                      <div style={s.barWrap}>
-                        <div style={{
-                          ...s.barFill,
-                          width: `${Math.min(100, Math.round((p.quantidade / Math.max(p.estoque_minimo * 3, 1)) * 100))}%`,
-                          background: p.baixo ? '#EF4444' : '#22C55E',
-                        }} />
+              : filtrados.map((p,i) => {
+                const pct = Math.min(100, Math.round((p.quantidade / Math.max(p.estoque_minimo * 3 || 1, 1)) * 100))
+                return (
+                  <tr key={p.id} style={{ background: i%2===0?'#fff':'#FAFAFA', transition:'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background='#F0FDF4'}
+                    onMouseLeave={e => e.currentTarget.style.background= i%2===0?'#fff':'#FAFAFA'}
+                  >
+                    <td style={s.td}><strong style={{color:'#111827'}}>{p.nome}</strong></td>
+                    <td style={s.td}><span style={s.catBadge}>{p.categoria}</span></td>
+                    <td style={{ ...s.td, minWidth:180 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                        <span style={{ fontWeight:700, color: p.baixo?'#DC2626':'#16A34A', minWidth:28, fontSize:14 }}>
+                          {p.quantidade}
+                        </span>
+                        <div style={s.barTrack}>
+                          <div style={{ ...s.barFill, width:`${pct}%`, background: p.baixo?'#EF4444':'#22C55E' }} />
+                        </div>
+                        <span style={{ fontSize:11, color:'#9CA3AF', minWidth:30 }}>{pct}%</span>
                       </div>
-                    </div>
-                  </td>
-                  <td style={s.td}>{p.estoque_minimo}</td>
-                  <td style={s.td}>
-                    <span style={{
-                      padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                      background: p.status === 'Ativo' ? '#22C55E' : '#808080', color: '#FFFFFF',
-                    }}>
-                      {p.status}
-                    </span>
-                  </td>
-                  <td style={s.td}>
-                    <span style={{
-                      padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                      background: p.baixo ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
-                      color: p.baixo ? '#EF4444' : '#22C55E',
-                    }}>
-                      {p.baixo ? '⚠️ Baixo' : '✅ OK'}
-                    </span>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td style={{ ...s.td, color:'#6B7280' }}>{p.estoque_minimo} un.</td>
+                    <td style={s.td}>
+                      <span style={{ background: p.status==='Ativo'?'#DCFCE7':'#F3F4F6', color: p.status==='Ativo'?'#15803D':'#6B7280', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:600 }}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td style={s.td}>
+                      <span style={{ background: p.baixo?'#FEE2E2':'#DCFCE7', color: p.baixo?'#DC2626':'#15803D', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:600 }}>
+                        {p.baixo ? 'Baixo' : 'Normal'}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })
             }
           </tbody>
         </table>
@@ -116,20 +125,24 @@ export default function Estoque() {
 }
 
 const s = {
-  page: { fontFamily: "'Inter', sans-serif" },
-  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 },
-  pageTitle: { fontSize: 32, fontWeight: 700, color: '#333333', margin: 0, lineHeight: 1.3 },
-  pageSub: { color: '#808080', fontSize: 14, margin: '4px 0 0', lineHeight: 1.5 },
-  alerta: { background: 'rgba(239,68,68,0.1)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontSize: 14, fontWeight: 600 },
-  filtros: { display: 'flex', gap: 8, marginBottom: 16 },
-  filtroBtn: { height: 32, padding: '0 16px', border: '1px solid #EFEFEF', borderRadius: 8, background: '#FFFFFF', cursor: 'pointer', fontSize: 13, fontFamily: "'Inter', sans-serif", color: '#808080', transition: 'all 0.2s ease-in-out' },
-  filtroBtnAtivo: { background: '#3B7C5F', color: '#FFFFFF', borderColor: '#3B7C5F' },
-  tableBox: { background: '#FFFFFF', borderRadius: 12, boxShadow: '0px 2px 8px rgba(0,0,0,0.08)', overflow: 'hidden', border: '1px solid #EFEFEF' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { background: '#E8F5F1' },
-  th: { textAlign: 'left', padding: '12px 16px', fontSize: 12, color: '#2F5F4A', fontWeight: 600, borderBottom: '1px solid #EFEFEF' },
-  td: { padding: '14px 16px', fontSize: 14, color: '#808080', borderBottom: '1px solid #EFEFEF', transition: 'background 0.15s' },
-  empty: { padding: '32px', textAlign: 'center', color: '#808080', fontSize: 14 },
-  barWrap: { flex: 1, background: '#EFEFEF', borderRadius: 4, height: 6, minWidth: 80 },
-  barFill: { height: 6, borderRadius: 4, transition: 'width 0.3s ease-in-out' },
+  summaryRow: { display:'flex', gap:12, marginBottom:20 },
+  summaryCard: { background:'#fff', borderRadius:10, padding:'16px 20px', display:'flex', alignItems:'center', gap:14, border:'1px solid #E5E7EB', boxShadow:'0 2px 6px rgba(0,0,0,0.04)', flex:1, borderLeft:'3px solid #E5E7EB' },
+  summaryLabel: { fontSize:12, color:'#6B7280', margin:'0 0 3px', fontWeight:500 },
+  summaryValue: { fontSize:22, fontWeight:700, color:'#111827', margin:0 },
+  controls: { display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, marginBottom:14, flexWrap:'wrap' },
+  filtros: { display:'flex', gap:6 },
+  filtroBtn: { height:36, padding:'0 14px', border:'1px solid #E5E7EB', borderRadius:8, background:'#fff', cursor:'pointer', fontSize:12.5, fontWeight:500, color:'#6B7280', transition:'all 0.15s' },
+  filtroBtnAtivo: { background:'#16A34A', color:'#fff', borderColor:'#16A34A', fontWeight:600 },
+  searchWrap: { position:'relative', minWidth:220 },
+  searchIcon: { position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:13, pointerEvents:'none' },
+  searchInput: { width:'100%', padding:'9px 14px 9px 36px', border:'1px solid #E5E7EB', borderRadius:8, fontSize:13.5, outline:'none', boxSizing:'border-box', color:'#111827', transition:'border-color 0.2s, box-shadow 0.2s', background:'#fff' },
+  tableWrap: { background:'#fff', borderRadius:12, border:'1px solid #E5E7EB', boxShadow:'0 2px 8px rgba(0,0,0,0.05)', overflow:'hidden' },
+  table: { width:'100%', borderCollapse:'collapse' },
+  thead: { background:'#F9FAFB' },
+  th: { textAlign:'left', padding:'11px 16px', fontSize:11, color:'#6B7280', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.5px', borderBottom:'1px solid #E5E7EB' },
+  td: { padding:'12px 16px', fontSize:13.5, color:'#374151', borderBottom:'1px solid #F3F4F6', transition:'background 0.15s' },
+  empty: { textAlign:'center', padding:'40px', color:'#9CA3AF', fontSize:14 },
+  catBadge: { background:'#F3F4F6', color:'#6B7280', padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:500 },
+  barTrack: { flex:1, background:'#F3F4F6', borderRadius:6, height:7, minWidth:80, overflow:'hidden' },
+  barFill: { height:7, borderRadius:6, transition:'width 0.4s ease' },
 }
