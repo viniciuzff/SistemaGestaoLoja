@@ -20,142 +20,173 @@ export default function Login({ onLogin }) {
     } finally { setLoading(false) }
   }
 
+  const focus = e => { e.target.style.borderColor = '#16A34A'; e.target.style.boxShadow = '0 0 0 3px rgba(22,163,74,0.12)' }
+  const blur  = e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none' }
+
   return (
     <div style={s.page}>
-      {/* Left panel */}
-      <div style={s.left}>
-        <div style={s.leftContent}>
-          <div style={s.brandIcon}>N</div>
-          <h1 style={s.brandTitle}>Nexus Store</h1>
-          <p style={s.brandDesc}>Sistema de Gestão Profissional</p>
-          <div style={s.features}>
-            {['Controle de estoque em tempo real', 'Gestão de clientes e vendas', 'Dashboard com métricas', 'Interface moderna e intuitiva'].map(f => (
-              <div key={f} style={s.featureItem}>
-                <span style={s.featureCheck}>✓</span>
-                <span style={s.featureText}>{f}</span>
-              </div>
-            ))}
+      {/* Fundo com padrão */}
+      <div style={s.bg} />
+      <div style={s.bgOverlay} />
+
+      {/* Elementos decorativos */}
+      <div style={{ ...s.circle, width: 400, height: 400, top: -100, left: -100 }} />
+      <div style={{ ...s.circle, width: 300, height: 300, bottom: -80, right: -60, opacity: 0.4 }} />
+      <div style={{ ...s.circle, width: 180, height: 180, top: '40%', right: '15%', opacity: 0.25 }} />
+
+      {/* CARD */}
+      <div style={s.card}>
+        {/* Logo */}
+        <div style={s.logoWrap}>
+          <div style={s.logoIcon}>N</div>
+          <div>
+            <h1 style={s.logoName}>Nexus Store</h1>
+            <p style={s.logoTag}>Sistema de Gestão</p>
           </div>
         </div>
-        <p style={s.leftFooter}>© 2025 Nexus Store. Todos os direitos reservados.</p>
-      </div>
 
-      {/* Right panel */}
-      <div style={s.right}>
-        <div style={s.formCard}>
-          <div style={s.formHeader}>
-            <h2 style={s.formTitle}>Bem-vindo de volta</h2>
-            <p style={s.formSub}>Entre com suas credenciais para acessar</p>
+        {/* Frase de impacto */}
+        <div style={s.impact}>
+          <h2 style={s.impactTitle}>Bem-vindo de volta 👋</h2>
+          <p style={s.impactSub}>Gerencie sua loja com eficiência e praticidade.</p>
+        </div>
+
+        {/* Formulário */}
+        <form onSubmit={handleSubmit} style={s.form}>
+          <div style={s.field}>
+            <label style={s.label}>Email</label>
+            <input style={s.input} type="email" placeholder="seu@email.com"
+              value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+              onFocus={focus} onBlur={blur} required />
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>Senha</label>
+            <input style={s.input} type="password" placeholder="••••••••"
+              value={form.senha} onChange={e => setForm({ ...form, senha: e.target.value })}
+              onFocus={focus} onBlur={blur} required />
           </div>
 
-          <form onSubmit={handleSubmit} style={s.form}>
-            <div style={s.field}>
-              <label style={s.label}>Email</label>
-              <input style={s.input} type="email" placeholder="seu@email.com"
-                value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                onFocus={e => { e.target.style.borderColor='#16A34A'; e.target.style.boxShadow='0 0 0 3px rgba(22,163,74,0.12)' }}
-                onBlur={e => { e.target.style.borderColor='#E5E7EB'; e.target.style.boxShadow='none' }}
-                required />
+          {erro && (
+            <div style={s.erroBox}>
+              <span>⚠️</span> {erro}
             </div>
-            <div style={s.field}>
-              <label style={s.label}>Senha</label>
-              <input style={s.input} type="password" placeholder="••••••••"
-                value={form.senha} onChange={e => setForm({ ...form, senha: e.target.value })}
-                onFocus={e => { e.target.style.borderColor='#16A34A'; e.target.style.boxShadow='0 0 0 3px rgba(22,163,74,0.12)' }}
-                onBlur={e => { e.target.style.borderColor='#E5E7EB'; e.target.style.boxShadow='none' }}
-                required />
-            </div>
+          )}
 
-            {erro && (
-              <div style={s.erroBox}>
-                <span>⚠</span> {erro}
-              </div>
-            )}
+          <button
+            style={{ ...s.btn, opacity: loading ? 0.8 : 1 }}
+            type="submit" disabled={loading}
+            onMouseEnter={e => e.currentTarget.style.background = '#14532D'}
+            onMouseLeave={e => e.currentTarget.style.background = '#16A34A'}
+          >
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span style={s.spinner} /> Entrando...
+              </span>
+            ) : 'Entrar no Sistema →'}
+          </button>
+        </form>
 
-            <button style={{ ...s.btn, opacity: loading ? 0.8 : 1 }} type="submit" disabled={loading}
-              onMouseEnter={e => e.currentTarget.style.background='#14532D'}
-              onMouseLeave={e => e.currentTarget.style.background='#16A34A'}
-            >
-              {loading ? (
-                <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-                  <span style={s.spinner} /> Entrando...
-                </span>
-              ) : 'Entrar no Sistema'}
-            </button>
-          </form>
-
-          <p style={s.signupText}>
-            Não tem conta?{' '}
-            <Link to="/cadastro" style={s.signupLink}>Criar conta</Link>
-          </p>
+        <div style={s.divider}>
+          <div style={s.dividerLine} />
+          <span style={s.dividerText}>ou</span>
+          <div style={s.dividerLine} />
         </div>
+
+        <p style={s.signupText}>
+          Não tem conta?{' '}
+          <Link to="/cadastro" style={s.signupLink}>Criar conta grátis</Link>
+        </p>
+
+        <p style={s.footer}>© 2025 Nexus Store · Todos os direitos reservados</p>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }
 
 const s = {
-  page: { minHeight: '100vh', display: 'flex' },
-  left: {
-    flex: 1, background: 'linear-gradient(160deg, #14532D 0%, #166534 60%, #15803D 100%)',
-    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-    padding: '48px', color: '#fff',
+  page: {
+    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    position: 'relative', overflow: 'hidden',
+    background: 'linear-gradient(135deg, #052e16 0%, #14532D 40%, #166534 70%, #15803D 100%)',
   },
-  leftContent: {},
-  brandIcon: {
-    width: 52, height: 52, background: '#22C55E', borderRadius: 14,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 20,
+  bg: {
+    position: 'absolute', inset: 0,
+    backgroundImage: `radial-gradient(circle at 20% 50%, rgba(34,197,94,0.15) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 20%, rgba(22,163,74,0.12) 0%, transparent 40%),
+                      radial-gradient(circle at 60% 80%, rgba(5,46,22,0.3) 0%, transparent 50%)`,
   },
-  brandTitle: { fontSize: 32, fontWeight: 700, color: '#fff', margin: '0 0 8px' },
-  brandDesc: { fontSize: 15, color: 'rgba(255,255,255,0.65)', margin: '0 0 40px' },
-  features: { display: 'flex', flexDirection: 'column', gap: 14 },
-  featureItem: { display: 'flex', alignItems: 'center', gap: 12 },
-  featureCheck: {
-    width: 22, height: 22, background: 'rgba(34,197,94,0.2)', borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 12, color: '#22C55E', flexShrink: 0, fontWeight: 700,
+  bgOverlay: {
+    position: 'absolute', inset: 0,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2322C55E' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
   },
-  featureText: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
-  leftFooter: { fontSize: 12, color: 'rgba(255,255,255,0.35)' },
-
-  right: {
-    width: 480, background: '#F5F7FA',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 32px',
+  circle: {
+    position: 'absolute', borderRadius: '50%',
+    background: 'rgba(34,197,94,0.08)',
+    border: '1px solid rgba(34,197,94,0.15)',
+    zIndex: 0,
   },
-  formCard: {
-    background: '#fff', borderRadius: 16, padding: '40px 36px',
-    width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-    border: '1px solid #E5E7EB',
+  card: {
+    position: 'relative', zIndex: 10,
+    background: 'rgba(255,255,255,0.97)',
+    backdropFilter: 'blur(20px)',
+    borderRadius: 20, padding: '36px 40px',
+    width: '100%', maxWidth: 440,
+    boxShadow: '0 25px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1)',
+    animation: 'fadeUp 0.5s ease',
   },
-  formHeader: { marginBottom: 28 },
-  formTitle: { fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 6px' },
-  formSub: { fontSize: 13.5, color: '#6B7280', margin: 0 },
+  logoWrap: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    marginBottom: 24, paddingBottom: 20,
+    borderBottom: '1px solid #F3F4F6',
+  },
+  logoIcon: {
+    width: 44, height: 44, background: 'linear-gradient(135deg, #16A34A, #22C55E)',
+    borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 20, fontWeight: 800, color: '#fff',
+    boxShadow: '0 4px 12px rgba(22,163,74,0.35)',
+  },
+  logoName: { fontSize: 17, fontWeight: 700, color: '#111827', margin: 0, lineHeight: 1.3 },
+  logoTag:  { fontSize: 11, color: '#9CA3AF', margin: 0, fontWeight: 500 },
+  impact: { marginBottom: 24 },
+  impactTitle: { fontSize: 20, fontWeight: 700, color: '#111827', margin: '0 0 6px', lineHeight: 1.3 },
+  impactSub:   { fontSize: 13.5, color: '#6B7280', margin: 0, lineHeight: 1.6 },
   form: {},
-  field: { marginBottom: 18 },
-  label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 },
+  field: { marginBottom: 16 },
+  label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 },
   input: {
     width: '100%', padding: '11px 14px', border: '1px solid #E5E7EB',
     borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box',
-    color: '#111827', background: '#fff', transition: 'border-color 0.2s, box-shadow 0.2s',
+    color: '#111827', background: '#FAFAFA',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
   },
   erroBox: {
     background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
     color: '#DC2626', borderRadius: 8, padding: '10px 14px',
-    fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
+    fontSize: 13, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8,
   },
   btn: {
     width: '100%', height: 44, background: '#16A34A', color: '#fff',
     border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
-    cursor: 'pointer', marginTop: 6, transition: 'background 0.15s',
+    cursor: 'pointer', marginTop: 4, transition: 'background 0.15s',
+    boxShadow: '0 4px 12px rgba(22,163,74,0.3)',
   },
   spinner: {
-    width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)',
+    width: 15, height: 15, border: '2px solid rgba(255,255,255,0.3)',
     borderTopColor: '#fff', borderRadius: '50%',
     display: 'inline-block', animation: 'spin 0.7s linear infinite',
   },
-  signupText: { textAlign: 'center', fontSize: 13, color: '#6B7280', marginTop: 20 },
+  divider: { display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 16px' },
+  dividerLine: { flex: 1, height: 1, background: '#E5E7EB' },
+  dividerText: { fontSize: 12, color: '#9CA3AF', fontWeight: 500 },
+  signupText: { textAlign: 'center', fontSize: 13.5, color: '#6B7280' },
   signupLink: { color: '#16A34A', fontWeight: 600, textDecoration: 'none' },
+  footer: { textAlign: 'center', fontSize: 11, color: '#9CA3AF', marginTop: 20 },
 }

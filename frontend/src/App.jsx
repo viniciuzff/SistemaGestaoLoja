@@ -9,6 +9,7 @@ import Clientes  from './pages/Clientes'
 import Produtos  from './pages/Produtos'
 import Vendas    from './pages/Vendas'
 import Estoque   from './pages/Estoque'
+import Perfil    from './pages/Perfil'
 
 function PrivateRoute({ children, user }) {
   return user?.autenticado ? children : <Navigate to="/login" replace />
@@ -35,13 +36,17 @@ export default function App() {
     </div>
   )
 
+  function handleUserUpdate(novoUser) {
+    setUser(prev => ({ ...prev, ...novoUser }))
+  }
+
   return (
     <Routes>
-      <Route path="/login" element={user?.autenticado ? <Navigate to="/" replace /> : <Login onLogin={setUser} />} />
+      <Route path="/login"    element={user?.autenticado ? <Navigate to="/" replace /> : <Login onLogin={setUser} />} />
       <Route path="/cadastro" element={<Cadastro />} />
       <Route path="/" element={
         <PrivateRoute user={user}>
-          <Layout user={user} onLogout={() => setUser({ autenticado: false })} />
+          <Layout user={user} onLogout={() => setUser({ autenticado: false })} onUserUpdate={handleUserUpdate} />
         </PrivateRoute>
       }>
         <Route index           element={<Dashboard />} />
@@ -49,6 +54,7 @@ export default function App() {
         <Route path="produtos"  element={<Produtos />} />
         <Route path="vendas"    element={<Vendas />} />
         <Route path="estoque"   element={<Estoque />} />
+        <Route path="perfil"    element={<Perfil />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
