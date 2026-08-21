@@ -68,6 +68,18 @@ def criar_banco():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS movimentacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produto_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL,
+    quantidade INTEGER NOT NULL,
+    motivo TEXT,
+    data TEXT NOT NULL,
+    FOREIGN KEY (produto_id) REFERENCES produtos(id)
+)
+""")
+
     conn.commit()
     conn.close()
 
@@ -427,6 +439,106 @@ def estoque():
     ]
     conn.close()
     return jsonify(produtos)
+
+@app.route('/api/vendas/grafico')
+def grafico_vendas():
+    if 'usuario' not in session:
+        return jsonify({'erro': 'Não autorizado'}), 401
+
+    conn   = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT data, SUM(total) as total
+        FROM vendas
+        GROUP BY data
+        ORDER BY data DESC
+        LIMIT 7
+    """)
+
+    dados = [{'data': r[0], 'total': round(r[1], 2)} for r in cursor.fetchall()]
+    conn.close()
+
+    return jsonify(dados[::-1])
+
+# ---------------- MOVIMENTAÇÕES ----------------
+@app.route('/api/movimentacoes', methods=['GET'])
+def listar_movimentacoes():
+    if 'usuario' not in session:
+        return jsonify({'erro': 'Não autorizado'}), 401
+
+    produto_id = request.args.get('produto_id')
+    conn   = get_db()
+    cursor = conn.cursor()
+
+    if produto_id:
+        cursor.execute("""
+            SELECT m.id, p.nome, m.tipo, m.quantidade, m.motivo, m.data
+            FROM movimentacoes m
+            JOIN produtos p ON p.id = m.produto_id
+            WHERE m.produto_id = ?
+            ORDER BY m.id DESC
+        """, (produto_id,))
+    else:
+        cursor.execute("""
+            SELECT m.id, p.nome, m.tipo, m.quantidade, m.motivo, m.data
+            FROM movimentacoes m
+            JOIN produtos p ON p.id = m.produto_id
+            ORDER BY m.id DESC
+            LIMIT 50
+        """)
+
+    movs = [
+        {'id': r[0], 'produto': r[1], 'tipo': r[2],
+         'quantidade': r[3], 'motivo': r[4], 'data': r[5]}
+        for r in cursor.fetchall()
+    ]
+    conn.close()
+    return jsonify(movs)
+
+
+@app.route('/api/movimentacoes', methods=['POST'])
+def criar_movimentacao():
+    if 'usuario' not in session:
+        return jsonify({'erro': 'Não autorizado'}), 401
+
+    data       = request.get_json()
+    produto_id = data.get('produto_id')
+    tipo       = data.get('tipo')  # "Entrada" ou "Saída"
+    quantidade = int(data.get('quantidade', 0))
+    motivo     = data.get('motivo', '')
+
+    if not produto_id or not tipo or quantidade <= 0:
+        return jsonify({'ok': False, 'erro': 'Dados inválidos'}), 400
+
+    conn   = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT quantidade FROM produtos WHERE id = ?", (produto_id,))
+    produto = cursor.fetchone()
+
+    if not produto:
+        conn.close()
+        return jsonify({'ok': False, 'erro': 'Produto não encontrado'}), 404
+
+    if tipo == 'Saída' and quantidade > produto[0]:
+        conn.close()
+        return jsonify({'ok': False, 'erro': 'Estoque insuficiente'}), 400
+
+    if tipo == 'Entrada':
+        cursor.execute("UPDATE produtos SET quantidade = quantidade + ? WHERE id = ?", (quantidade, produto_id))
+    else:
+        cursor.execute("UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?", (quantidade, produto_id))
+
+    data_mov = datetime.now().strftime('%d/%m/%Y %H:%M')
+    cursor.execute("""
+        INSERT INTO movimentacoes (produto_id, tipo, quantidade, motivo, data)
+        VALUES (?, ?, ?, ?, ?)
+    """, (produto_id, tipo, quantidade, motivo, data_mov))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True}), 201
 
 
 # ---------------- START ----------------

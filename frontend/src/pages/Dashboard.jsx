@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer
+} from 'recharts'
 
 function Badge({ status }) {
   const map = {
@@ -16,10 +20,12 @@ function Badge({ status }) {
 }
 
 export default function Dashboard() {
-  const [dados, setDados] = useState(null)
+  const [dados, setDados]   = useState(null)
+  const [grafico, setGrafico] = useState([])
 
   useEffect(() => {
     axios.get('/api/dashboard', { withCredentials: true }).then(r => setDados(r.data))
+    axios.get('/api/vendas/grafico', { withCredentials: true }).then(r => setGrafico(r.data))
   }, [])
 
   if (!dados) return (
@@ -29,11 +35,25 @@ export default function Dashboard() {
   )
 
   const cards = [
-    { label:'Total de Produtos', value: dados.total_produtos, icon:'', color:'', light:'' },
-    { label:'Total de Clientes', value: dados.total_clientes, icon:'', color:'', light:'' },
-    { label:'Faturamento Total', value:`R$ ${Number(dados.faturamento).toFixed(2)}`, icon:'', color:'', light:'' },
-    { label:'Estoque Baixo',     value: dados.estoque_baixo.length, icon:'', color:'', light:'' },
+    { label:'Total de Produtos', value: dados.total_produtos },
+    { label:'Total de Clientes', value: dados.total_clientes },
+    { label:'Faturamento Total', value:`R$ ${Number(dados.faturamento).toFixed(2)}` },
+    { label:'Estoque Baixo',     value: dados.estoque_baixo.length },
   ]
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{ background:'#fff', border:'1px solid #E5E7EB', borderRadius:8, padding:'10px 14px', boxShadow:'0 4px 12px rgba(0,0,0,0.08)' }}>
+          <p style={{ fontSize:12, color:'#6B7280', margin:'0 0 4px' }}>{label}</p>
+          <p style={{ fontSize:14, fontWeight:700, color:'#16A34A', margin:0 }}>
+            R$ {Number(payload[0].value).toFixed(2)}
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <div>
@@ -44,17 +64,40 @@ export default function Dashboard() {
             onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
             onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
           >
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-              <div>
-                <p style={s.cardLabel}>{c.label}</p>
-                <h2 style={{ ...s.cardValue, color: c.color }}>{c.value}</h2>
-              </div>
-              <div style={{ ...s.cardIcon, background: c.light }}>
-                <span style={{ fontSize:22 }}>{c.icon}</span>
-              </div>
-            </div>
+            <p style={s.cardLabel}>{c.label}</p>
+            <h2 style={s.cardValue}>{c.value}</h2>
           </div>
         ))}
+      </div>
+
+      {/* GRÁFICO */}
+      <div style={s.box}>
+        <div style={s.boxHead}>
+          <h3 style={s.boxTitle}>Vendas por Dia</h3>
+          <span style={s.boxBadge}>Últimos 7 dias</span>
+        </div>
+        {grafico.length === 0
+          ? <div style={s.empty}>Nenhuma venda registrada ainda.</div>
+          : <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={grafico} margin={{ top:4, right:8, left:0, bottom:0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis
+                  dataKey="data"
+                  tick={{ fontSize:12, fill:'#9CA3AF' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize:12, fill:'#9CA3AF' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={v => `R$${v}`}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill:'#F0FDF4' }} />
+                <Bar dataKey="total" fill="#16A34A" radius={[6,6,0,0]} maxBarSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
+        }
       </div>
 
       {/* BOTTOM ROW */}
@@ -122,17 +165,16 @@ export default function Dashboard() {
 }
 
 const s = {
-  cards: { display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:20 },
+  cards: { display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:16 },
   card: {
     background:'#fff', borderRadius:12, padding:'20px 22px',
     boxShadow:'0 2px 8px rgba(0,0,0,0.05)', border:'1px solid #E5E7EB',
-    transition:'transform 0.2s, box-shadow 0.2s', cursor:'default',
+    transition:'transform 0.2s', cursor:'default',
   },
   cardLabel: { fontSize:12, color:'#6B7280', fontWeight:500, margin:'0 0 8px' },
-  cardValue: { fontSize:26, fontWeight:700, margin:0 },
-  cardIcon: { width:48, height:48, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 },
-  row: { display:'flex', gap:16, alignItems:'flex-start' },
-  box: { background:'#fff', borderRadius:12, padding:'20px', boxShadow:'0 2px 8px rgba(0,0,0,0.05)', border:'1px solid #E5E7EB' },
+  cardValue: { fontSize:26, fontWeight:700, margin:0, color:'#111827' },
+  row: { display:'flex', gap:16, alignItems:'flex-start', marginTop:16 },
+  box: { background:'#fff', borderRadius:12, padding:'20px', boxShadow:'0 2px 8px rgba(0,0,0,0.05)', border:'1px solid #E5E7EB', marginBottom:16 },
   boxHead: { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 },
   boxTitle: { fontSize:14, fontWeight:600, color:'#111827', margin:0 },
   boxBadge: { background:'#F0FDF4', color:'#16A34A', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:600 },

@@ -10,6 +10,7 @@ import Produtos  from './pages/Produtos'
 import Vendas    from './pages/Vendas'
 import Estoque   from './pages/Estoque'
 import Perfil    from './pages/Perfil'
+import Movimentacoes from './pages/Movimentacoes'
 
 function PrivateRoute({ children, user }) {
   return user?.autenticado ? children : <Navigate to="/login" replace />
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="vendas"    element={<Vendas />} />
         <Route path="estoque"   element={<Estoque />} />
         <Route path="perfil"    element={<Perfil />} />
+        <Route path="movimentacoes"  element={<Movimentacoes />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

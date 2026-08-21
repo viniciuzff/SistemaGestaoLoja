@@ -2,11 +2,12 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 
 const nav = [
-  { to: '/',         icon: '',  label: 'Dashboard', end: true },
-  { to: '/clientes', icon: '', label: 'Clientes' },
-  { to: '/produtos',  icon: '', label: 'Produtos' },
-  { to: '/vendas',    icon: '', label: 'Vendas' },
-  { to: '/estoque',   icon: '', label: 'Estoque' },
+  { to: '/',              icon: '', label: 'Dashboard',    end: true },
+  { to: '/clientes',      icon: '', label: 'Clientes' },
+  { to: '/produtos',      icon: '', label: 'Produtos' },
+  { to: '/vendas',        icon: '', label: 'Vendas' },
+  { to: '/estoque',       icon: '', label: 'Estoque' },
+  { to: '/movimentacoes', icon: '', label: 'Movimentações' },
 ]
 
 export default function Layout({ user, onLogout, onUserUpdate }) {
@@ -20,17 +21,17 @@ export default function Layout({ user, onLogout, onUserUpdate }) {
   }
 
   const pageTitle = {
-    '/':         'Dashboard',
-    '/clientes': 'Clientes',
-    '/produtos': 'Produtos',
-    '/vendas':   'Vendas',
-    '/estoque':  'Estoque',
-    '/perfil':   'Meu Perfil',
+    '/':              'Dashboard',
+    '/clientes':      'Clientes',
+    '/produtos':      'Produtos',
+    '/vendas':        'Vendas',
+    '/estoque':       'Estoque',
+    '/perfil':        'Meu Perfil',
+    '/movimentacoes': 'Movimentações',
   }[location.pathname] || 'Dashboard'
 
   return (
     <div style={s.root}>
-      {/* SIDEBAR */}
       <aside style={s.sidebar}>
         <div style={s.brand}>
           <div style={s.brandIcon}>N</div>
@@ -69,11 +70,10 @@ export default function Layout({ user, onLogout, onUserUpdate }) {
           <button style={s.logoutBtn} onClick={handleLogout}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.15)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          > Sair</button>
+          >Sair</button>
         </div>
       </aside>
 
-      {/* CONTENT */}
       <div style={s.body}>
         <header style={s.topbar}>
           <div>
