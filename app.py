@@ -3,6 +3,12 @@ from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import os
+import uuid
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = 'segredo123'
@@ -35,15 +41,16 @@ def criar_banco():
     """)
 
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS produtos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        categoria TEXT,
-        preco_venda REAL,
-        preco_custo REAL,
-        quantidade INTEGER,
-        estoque_minimo INTEGER,
-        status TEXT
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            categoria TEXT,
+            preco_venda REAL,
+            preco_custo REAL,
+            quantidade INTEGER,
+            estoque_minimo INTEGER,
+            status TEXT,
+            imagem TEXT
     )
     """)
 
@@ -309,7 +316,7 @@ def listar_produtos():
     cursor.execute(query, params)
     produtos = [
         {'id': r[0], 'nome': r[1], 'categoria': r[2], 'preco_venda': r[3],
-         'preco_custo': r[4], 'quantidade': r[5], 'estoque_minimo': r[6], 'status': r[7]}
+        'preco_custo': r[4], 'quantidade': r[5], 'estoque_minimo': r[6], 'status': r[7], 'imagem': r[8]}
         for r in cursor.fetchall()
     ]
     conn.close()
@@ -540,6 +547,37 @@ def criar_movimentacao():
     conn.close()
     return jsonify({'ok': True}), 201
 
+# ---------------- UPLOAD ----------------
+from flask import send_from_directory
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route('/api/produtos/<int:id>/imagem', methods=['POST'])
+def upload_imagem(id):
+    if 'usuario' not in session:
+        return jsonify({'erro': 'Não autorizado'}), 401
+
+    file = request.files.get('imagem')
+    if not file:
+        return jsonify({'ok': False, 'erro': 'Nenhum arquivo enviado'}), 400
+
+    ext = file.filename.rsplit('.', 1)[-1].lower()
+    if ext not in ['png', 'jpg', 'jpeg', 'webp', 'gif']:
+        return jsonify({'ok': False, 'erro': 'Formato inválido'}), 400
+
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    url = f"/uploads/{filename}"
+
+    conn   = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE produtos SET imagem = ? WHERE id = ?", (url, id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'ok': True, 'imagem': url})
 
 # ---------------- START ----------------
 if __name__ == '__main__':
