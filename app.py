@@ -373,7 +373,8 @@ def listar_vendas():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM vendas ORDER BY id DESC")
     vendas = [
-        {'id': r[0], 'cliente': r[1], 'data': r[2], 'pagamento': r[3], 'status': r[4], 'total': r[5]}
+        {'id': r[0], 'cliente': r[1], 'data': r[2], 'pagamento': r[3],
+         'status': r[4], 'total': r[5], 'desconto': r[6] if len(r) > 6 else 0}
         for r in cursor.fetchall()
     ]
     conn.close()
@@ -388,6 +389,7 @@ def criar_venda():
     quantidade = int(data['quantidade'])
     pagamento  = data['pagamento']
     status     = data.get('status', 'Concluída')
+    desconto   = float(data.get('desconto', 0))
 
     conn   = get_db()
     cursor = conn.cursor()
@@ -404,11 +406,13 @@ def criar_venda():
         conn.close()
         return jsonify({'ok': False, 'erro': 'Estoque insuficiente'}), 400
 
-    total      = round(preco * quantidade, 2)
+    subtotal   = preco * quantidade
+    desconto_valor = subtotal * (desconto / 100)
+    total      = round(subtotal - desconto_valor, 2)
     data_venda = datetime.now().strftime('%d/%m/%Y')
 
-    cursor.execute("INSERT INTO vendas (cliente, data, pagamento, status, total) VALUES (?, ?, ?, ?, ?)",
-                   (cliente, data_venda, pagamento, status, total))
+    cursor.execute("INSERT INTO vendas (cliente, data, pagamento, status, total, desconto) VALUES (?, ?, ?, ?, ?, ?)",
+                   (cliente, data_venda, pagamento, status, total, desconto))
     venda_id = cursor.lastrowid
 
     cursor.execute("INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco) VALUES (?, ?, ?, ?)",
