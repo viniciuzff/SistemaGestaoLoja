@@ -583,6 +583,41 @@ def upload_imagem(id):
 
     return jsonify({'ok': True, 'imagem': url})
 
+@app.route('/api/vendas/<int:id>/detalhes', methods=['GET'])
+def detalhes_venda(id):
+        if 'usuario' not in session:
+            return jsonify({'erro': 'Não autorizado'}), 401
+
+        conn   = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM vendas WHERE id = ?", (id,))
+        v = cursor.fetchone()
+
+        if not v:
+            conn.close()
+            return jsonify({'erro': 'Venda não encontrada'}), 404
+
+        cursor.execute("""
+            SELECT p.nome, p.categoria, iv.quantidade, iv.preco
+            FROM itens_venda iv
+            JOIN produtos p ON p.id = iv.produto_id
+            WHERE iv.venda_id = ?
+        """, (id,))
+
+        itens = [
+            {'produto': r[0], 'categoria': r[1], 'quantidade': r[2], 'preco': r[3], 'subtotal': round(r[2]*r[3], 2)}
+            for r in cursor.fetchall()
+        ]
+        conn.close()
+
+        return jsonify({
+            'id': v[0], 'cliente': v[1], 'data': v[2],
+            'pagamento': v[3], 'status': v[4], 'total': v[5],
+            'desconto': v[6] if len(v) > 6 else 0,
+            'itens': itens
+        })
+
 # ---------------- START ----------------
 if __name__ == '__main__':
     app.run(debug=True)

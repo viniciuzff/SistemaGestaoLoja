@@ -11,14 +11,17 @@ function Badge({ status }) {
 }
 
 export default function Vendas() {
-  const [vendas, setVendas]     = useState([])
-  const [clientes, setClientes] = useState([])
-  const [produtos, setProdutos] = useState([])
-  const [modal, setModal]       = useState(false)
-  const [form, setForm]         = useState(vazio)
-  const [erro, setErro]         = useState('')
-  const [busca, setBusca]       = useState('')
-  const [loading, setLoading]   = useState(false)
+  const [vendas, setVendas]         = useState([])
+  const [clientes, setClientes]     = useState([])
+  const [produtos, setProdutos]     = useState([])
+  const [modal, setModal]           = useState(false)
+  const [detalheModal, setDetalheModal] = useState(false)
+  const [detalhe, setDetalhe]       = useState(null)
+  const [form, setForm]             = useState(vazio)
+  const [erro, setErro]             = useState('')
+  const [busca, setBusca]           = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [loadingDetalhe, setLoadingDetalhe] = useState(false)
 
   const carregar = () => Promise.all([
     api({ url:'/api/vendas' }).then(r => setVendas(r.data)),
@@ -27,19 +30,24 @@ export default function Vendas() {
   ])
   useEffect(() => { carregar() }, [])
 
-  // Calcula preview do total com desconto
   const produtoSelecionado = produtos.find(p => p.id === parseInt(form.produto_id))
   const subtotal = produtoSelecionado ? produtoSelecionado.preco_venda * parseInt(form.quantidade || 1) : 0
   const desconto_valor = subtotal * ((parseFloat(form.desconto) || 0) / 100)
   const totalPreview = subtotal - desconto_valor
 
+  async function verDetalhes(id) {
+    setLoadingDetalhe(true)
+    setDetalheModal(true)
+    try {
+      const r = await api({ url:`/api/vendas/${id}/detalhes` })
+      setDetalhe(r.data)
+    } finally { setLoadingDetalhe(false) }
+  }
+
   async function salvar(e) {
     e.preventDefault(); setErro(''); setLoading(true)
     try {
-      await api({ method:'post', url:'/api/vendas', data:{
-        ...form,
-        desconto: parseFloat(form.desconto) || 0
-      }})
+      await api({ method:'post', url:'/api/vendas', data:{ ...form, desconto: parseFloat(form.desconto) || 0 }})
       setModal(false); setForm(vazio); carregar()
     } catch(err) {
       setErro(err.response?.data?.erro || 'Erro ao registrar venda')
@@ -61,9 +69,7 @@ export default function Vendas() {
       <div style={s.pageHead}>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <p style={s.pageCount}>{vendas.length} vendas registradas</p>
-          {vendas.length > 0 && (
-            <span style={s.totalBadge}>Total: R$ {totalFaturado.toFixed(2)}</span>
-          )}
+          {vendas.length > 0 && <span style={s.totalBadge}>Total: R$ {totalFaturado.toFixed(2)}</span>}
         </div>
         <button style={s.btnPrimary} onClick={() => { setErro(''); setForm(vazio); setModal(true) }}
           onMouseEnter={e => e.currentTarget.style.background='#14532D'}
@@ -93,9 +99,11 @@ export default function Vendas() {
               </thead>
               <tbody>
                 {filtrados.map((v,i) => (
-                  <tr key={v.id} style={{ background: i%2===0?'#fff':'#FAFAFA', transition:'background 0.15s' }}
+                  <tr key={v.id}
+                    style={{ background: i%2===0?'#fff':'#FAFAFA', transition:'background 0.15s', cursor:'pointer' }}
                     onMouseEnter={e => e.currentTarget.style.background='#F0FDF4'}
                     onMouseLeave={e => e.currentTarget.style.background= i%2===0?'#fff':'#FAFAFA'}
+                    onClick={() => verDetalhes(v.id)}
                   >
                     <td style={{ ...s.td, color:'#9CA3AF', width:40 }}>{v.id}</td>
                     <td style={s.td}><strong style={{color:'#111827'}}>{v.cliente}</strong></td>
@@ -109,7 +117,7 @@ export default function Vendas() {
                     </td>
                     <td style={s.td}><Badge status={v.status} /></td>
                     <td style={{ ...s.td, fontWeight:700, color:'#16A34A' }}>R$ {Number(v.total).toFixed(2)}</td>
-                    <td style={s.td}>
+                    <td style={s.td} onClick={e => e.stopPropagation()}>
                       <button style={s.btnDel} onClick={() => excluir(v.id)}>🗑 Excluir</button>
                     </td>
                   </tr>
@@ -119,6 +127,96 @@ export default function Vendas() {
         }
       </div>
 
+      {/* MODAL DETALHES */}
+      {detalheModal && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={s.modalHead}>
+              <h3 style={s.modalTitle}>🧾 Detalhes da Venda #{detalhe?.id}</h3>
+              <button style={s.closeBtn} onClick={() => { setDetalheModal(false); setDetalhe(null) }}>✕</button>
+            </div>
+
+            {loadingDetalhe ? (
+              <div style={{ textAlign:'center', padding:'32px 0', color:'#9CA3AF' }}>Carregando...</div>
+            ) : detalhe && (
+              <>
+                {/* INFO DA VENDA */}
+                <div style={s.infoGrid}>
+                  <div style={s.infoItem}>
+                    <span style={s.infoLabel}>Cliente</span>
+                    <span style={s.infoVal}>{detalhe.cliente}</span>
+                  </div>
+                  <div style={s.infoItem}>
+                    <span style={s.infoLabel}>Data</span>
+                    <span style={s.infoVal}>{detalhe.data}</span>
+                  </div>
+                  <div style={s.infoItem}>
+                    <span style={s.infoLabel}>Pagamento</span>
+                    <span style={s.infoVal}>{detalhe.pagamento}</span>
+                  </div>
+                  <div style={s.infoItem}>
+                    <span style={s.infoLabel}>Status</span>
+                    <Badge status={detalhe.status} />
+                  </div>
+                </div>
+
+                {/* ITENS */}
+                <h4 style={s.sectionTitle}>Itens da venda</h4>
+                <table style={s.table}>
+                  <thead>
+                    <tr style={s.thead}>
+                      {['Produto','Categoria','Qtd','Preço unit.','Subtotal'].map(h => (
+                        <th key={h} style={s.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalhe.itens.map((item, i) => (
+                      <tr key={i} style={{ background: i%2===0?'#fff':'#FAFAFA' }}>
+                        <td style={s.td}><strong style={{color:'#111827'}}>{item.produto}</strong></td>
+                        <td style={s.td}><span style={s.catBadge}>{item.categoria}</span></td>
+                        <td style={s.td}>{item.quantidade}</td>
+                        <td style={s.td}>R$ {Number(item.preco).toFixed(2)}</td>
+                        <td style={{ ...s.td, fontWeight:600, color:'#16A34A' }}>R$ {Number(item.subtotal).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* RESUMO FINANCEIRO */}
+                <div style={s.resumoBox}>
+                  {detalhe.desconto > 0 && (
+                    <>
+                      <div style={s.resumoRow}>
+                        <span style={s.resumoLabel}>Subtotal</span>
+                        <span style={s.resumoVal}>R$ {(detalhe.total / (1 - detalhe.desconto/100)).toFixed(2)}</span>
+                      </div>
+                      <div style={s.resumoRow}>
+                        <span style={s.resumoLabel}>Desconto ({detalhe.desconto}%)</span>
+                        <span style={{ ...s.resumoVal, color:'#DC2626' }}>
+                          − R$ {((detalhe.total / (1 - detalhe.desconto/100)) - detalhe.total).toFixed(2)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <div style={{ ...s.resumoRow, borderTop:'1px solid #E5E7EB', paddingTop:10, marginTop:4 }}>
+                    <span style={{ ...s.resumoLabel, fontWeight:700, color:'#111827', fontSize:15 }}>Total</span>
+                    <span style={{ ...s.resumoVal, fontSize:20, color:'#16A34A', fontWeight:700 }}>
+                      R$ {Number(detalhe.total).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', justifyContent:'flex-end', marginTop:16 }}>
+                  <button style={s.btnSecondary} onClick={() => { setDetalheModal(false); setDetalhe(null) }}>Fechar</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL NOVA VENDA */}
       {modal && (
         <div style={s.overlay}>
           <div style={s.modal}>
@@ -134,7 +232,6 @@ export default function Vendas() {
                   {clientes.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                 </select>
               </div>
-
               <div style={s.field}>
                 <label style={s.label}>Produto *</label>
                 <select style={s.input} value={form.produto_id} onChange={e => setForm({...form,produto_id:e.target.value})} onFocus={focus} onBlur={blur} required>
@@ -146,7 +243,6 @@ export default function Vendas() {
                   ))}
                 </select>
               </div>
-
               <div style={s.row2}>
                 <div style={s.field}>
                   <label style={s.label}>Quantidade *</label>
@@ -161,8 +257,6 @@ export default function Vendas() {
                     onFocus={focus} onBlur={blur} />
                 </div>
               </div>
-
-              {/* PREVIEW DO TOTAL */}
               {produtoSelecionado && (
                 <div style={s.previewBox}>
                   <div style={s.previewRow}>
@@ -181,7 +275,6 @@ export default function Vendas() {
                   </div>
                 </div>
               )}
-
               <div style={s.row2}>
                 <div style={s.field}>
                   <label style={s.label}>Forma de Pagamento</label>
@@ -198,7 +291,6 @@ export default function Vendas() {
                   </select>
                 </div>
               </div>
-
               {erro && <div style={s.erroBox}>⚠ {erro}</div>}
               <div style={s.modalActions}>
                 <button type="button" style={s.btnSecondary} onClick={() => setModal(false)}>Cancelar</button>
@@ -230,12 +322,22 @@ const s = {
   th: { textAlign:'left', padding:'11px 16px', fontSize:11, color:'#6B7280', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.5px', borderBottom:'1px solid #E5E7EB' },
   td: { padding:'12px 16px', fontSize:13.5, color:'#374151', borderBottom:'1px solid #F3F4F6' },
   descontoBadge: { background:'#FEF3C7', color:'#B45309', padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:700 },
+  catBadge: { background:'#F3F4F6', color:'#6B7280', padding:'3px 8px', borderRadius:20, fontSize:11 },
   btnDel: { padding:'5px 12px', background:'#FEF2F2', color:'#DC2626', border:'1px solid #FECACA', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' },
   overlay: { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999 },
-  modal: { background:'#fff', borderRadius:14, padding:'28px 32px', width:'100%', maxWidth:480, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', maxHeight:'90vh', overflowY:'auto' },
+  modal: { background:'#fff', borderRadius:14, padding:'28px 32px', width:'100%', maxWidth:520, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', maxHeight:'90vh', overflowY:'auto' },
   modalHead: { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 },
   modalTitle: { fontSize:16, fontWeight:700, color:'#111827', margin:0 },
   closeBtn: { background:'none', border:'none', fontSize:18, cursor:'pointer', color:'#9CA3AF' },
+  infoGrid: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, background:'#F9FAFB', borderRadius:10, padding:'16px', marginBottom:20 },
+  infoItem: { display:'flex', flexDirection:'column', gap:4 },
+  infoLabel: { fontSize:11, color:'#9CA3AF', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.5px' },
+  infoVal: { fontSize:14, fontWeight:600, color:'#111827' },
+  sectionTitle: { fontSize:13, fontWeight:600, color:'#374151', margin:'0 0 10px' },
+  resumoBox: { background:'#F9FAFB', border:'1px solid #E5E7EB', borderRadius:10, padding:'14px 16px', marginTop:16 },
+  resumoRow: { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 },
+  resumoLabel: { fontSize:13, color:'#6B7280' },
+  resumoVal: { fontSize:14, fontWeight:600, color:'#111827' },
   row2: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 },
   field: { marginBottom:14 },
   label: { display:'block', fontSize:13, fontWeight:600, color:'#374151', marginBottom:6 },
