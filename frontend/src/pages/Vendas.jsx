@@ -11,16 +11,17 @@ function Badge({ status }) {
 }
 
 export default function Vendas() {
-  const [vendas, setVendas]         = useState([])
-  const [clientes, setClientes]     = useState([])
-  const [produtos, setProdutos]     = useState([])
-  const [modal, setModal]           = useState(false)
+  const [vendas, setVendas]             = useState([])
+  const [clientes, setClientes]         = useState([])
+  const [produtos, setProdutos]         = useState([])
+  const [modal, setModal]               = useState(false)
   const [detalheModal, setDetalheModal] = useState(false)
-  const [detalhe, setDetalhe]       = useState(null)
-  const [form, setForm]             = useState(vazio)
-  const [erro, setErro]             = useState('')
-  const [busca, setBusca]           = useState('')
-  const [loading, setLoading]       = useState(false)
+  const [detalhe, setDetalhe]           = useState(null)
+  const [form, setForm]                 = useState(vazio)
+  const [erro, setErro]                 = useState('')
+  const [busca, setBusca]               = useState('')
+  const [periodo, setPeriodo]           = useState('todos')
+  const [loading, setLoading]           = useState(false)
   const [loadingDetalhe, setLoadingDetalhe] = useState(false)
 
   const carregar = () => Promise.all([
@@ -34,6 +35,31 @@ export default function Vendas() {
   const subtotal = produtoSelecionado ? produtoSelecionado.preco_venda * parseInt(form.quantidade || 1) : 0
   const desconto_valor = subtotal * ((parseFloat(form.desconto) || 0) / 100)
   const totalPreview = subtotal - desconto_valor
+
+  const filtrarPorPeriodo = (venda) => {
+    const hoje = new Date()
+    const partes = venda.data.split('/')
+    const dataVenda = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]))
+    if (periodo === 'hoje') return dataVenda.toDateString() === hoje.toDateString()
+    if (periodo === 'semana') {
+      const inicioSemana = new Date(hoje)
+      inicioSemana.setDate(hoje.getDate() - hoje.getDay())
+      return dataVenda >= inicioSemana
+    }
+    if (periodo === 'mes') {
+      return dataVenda.getMonth() === hoje.getMonth() &&
+             dataVenda.getFullYear() === hoje.getFullYear()
+    }
+    return true
+  }
+
+  const filtrados = vendas
+    .filter(v => v.cliente.toLowerCase().includes(busca.toLowerCase()))
+    .filter(filtrarPorPeriodo)
+
+  const focus = e => { e.target.style.borderColor='#16A34A'; e.target.style.boxShadow='0 0 0 3px rgba(22,163,74,0.12)' }
+  const blur  = e => { e.target.style.borderColor='#E5E7EB'; e.target.style.boxShadow='none' }
+  const totalFaturado = filtrados.reduce((a,v) => a + (v.total||0), 0)
 
   async function verDetalhes(id) {
     setLoadingDetalhe(true)
@@ -59,17 +85,12 @@ export default function Vendas() {
     await api({ method:'delete', url:`/api/vendas/${id}` }); carregar()
   }
 
-  const filtrados = vendas.filter(v => v.cliente.toLowerCase().includes(busca.toLowerCase()))
-  const focus = e => { e.target.style.borderColor='#16A34A'; e.target.style.boxShadow='0 0 0 3px rgba(22,163,74,0.12)' }
-  const blur  = e => { e.target.style.borderColor='#E5E7EB'; e.target.style.boxShadow='none' }
-  const totalFaturado = filtrados.reduce((a,v) => a + (v.total||0), 0)
-
   return (
     <div>
       <div style={s.pageHead}>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-          <p style={s.pageCount}>{vendas.length} vendas registradas</p>
-          {vendas.length > 0 && <span style={s.totalBadge}>Total: R$ {totalFaturado.toFixed(2)}</span>}
+          <p style={s.pageCount}>{filtrados.length} vendas</p>
+          {filtrados.length > 0 && <span style={s.totalBadge}>Total: R$ {totalFaturado.toFixed(2)}</span>}
         </div>
         <button style={s.btnPrimary} onClick={() => { setErro(''); setForm(vazio); setModal(true) }}
           onMouseEnter={e => e.currentTarget.style.background='#14532D'}
@@ -77,17 +98,34 @@ export default function Vendas() {
         >+ Nova Venda</button>
       </div>
 
+      {/* FILTROS DE PERÍODO */}
+      <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+        {[
+          { key:'todos',  label:'Todos' },
+          { key:'hoje',   label:'Hoje' },
+          { key:'semana', label:'Esta semana' },
+          { key:'mes',    label:'Este mês' },
+        ].map(p => (
+          <button key={p.key}
+            style={{ ...s.filtroBt, ...(periodo === p.key ? s.filtroAtivo : {}) }}
+            onClick={() => setPeriodo(p.key)}
+          >{p.label}</button>
+        ))}
+      </div>
+
+      {/* BUSCA */}
       <div style={s.searchWrap}>
         <input style={s.searchInput} placeholder="Buscar por cliente..."
           value={busca} onChange={e => setBusca(e.target.value)} onFocus={focus} onBlur={blur} />
       </div>
 
+      {/* TABELA */}
       <div style={s.tableWrap}>
         {filtrados.length === 0
           ? <div style={s.emptyState}>
               <p style={{ fontSize:32, margin:'0 0 8px' }}>🛒</p>
-              <p style={{ fontSize:15, fontWeight:600, color:'#374151', margin:'0 0 4px' }}>Nenhuma venda registrada</p>
-              <p style={{ fontSize:13, color:'#9CA3AF' }}>Clique em + Nova Venda para começar</p>
+              <p style={{ fontSize:15, fontWeight:600, color:'#374151', margin:'0 0 4px' }}>Nenhuma venda encontrada</p>
+              <p style={{ fontSize:13, color:'#9CA3AF' }}>Tente outro período ou clique em + Nova Venda</p>
             </div>
           : <table style={s.table}>
               <thead>
@@ -135,12 +173,10 @@ export default function Vendas() {
               <h3 style={s.modalTitle}>🧾 Detalhes da Venda #{detalhe?.id}</h3>
               <button style={s.closeBtn} onClick={() => { setDetalheModal(false); setDetalhe(null) }}>✕</button>
             </div>
-
             {loadingDetalhe ? (
               <div style={{ textAlign:'center', padding:'32px 0', color:'#9CA3AF' }}>Carregando...</div>
             ) : detalhe && (
               <>
-                {/* INFO DA VENDA */}
                 <div style={s.infoGrid}>
                   <div style={s.infoItem}>
                     <span style={s.infoLabel}>Cliente</span>
@@ -159,8 +195,6 @@ export default function Vendas() {
                     <Badge status={detalhe.status} />
                   </div>
                 </div>
-
-                {/* ITENS */}
                 <h4 style={s.sectionTitle}>Itens da venda</h4>
                 <table style={s.table}>
                   <thead>
@@ -182,8 +216,6 @@ export default function Vendas() {
                     ))}
                   </tbody>
                 </table>
-
-                {/* RESUMO FINANCEIRO */}
                 <div style={s.resumoBox}>
                   {detalhe.desconto > 0 && (
                     <>
@@ -206,7 +238,6 @@ export default function Vendas() {
                     </span>
                   </div>
                 </div>
-
                 <div style={{ display:'flex', justifyContent:'flex-end', marginTop:16 }}>
                   <button style={s.btnSecondary} onClick={() => { setDetalheModal(false); setDetalhe(null) }}>Fechar</button>
                 </div>
@@ -313,6 +344,8 @@ const s = {
   pageCount: { fontSize:13, color:'#6B7280', margin:0 },
   totalBadge: { background:'#F0FDF4', color:'#16A34A', padding:'4px 12px', borderRadius:20, fontSize:12, fontWeight:600 },
   btnPrimary: { height:40, padding:'0 20px', background:'#16A34A', color:'#fff', border:'none', borderRadius:8, fontSize:13.5, fontWeight:600, cursor:'pointer', transition:'background 0.15s' },
+  filtroBt: { padding:'7px 16px', border:'1px solid #E5E7EB', borderRadius:8, fontSize:13, background:'#fff', color:'#6B7280', cursor:'pointer', fontWeight:500, transition:'all 0.15s' },
+  filtroAtivo: { background:'#16A34A', color:'#fff', border:'1px solid #16A34A', fontWeight:600 },
   searchWrap: { marginBottom:16 },
   searchInput: { width:'100%', padding:'10px 14px', border:'1px solid #E5E7EB', borderRadius:8, fontSize:14, outline:'none', boxSizing:'border-box', color:'#111827', background:'#fff' },
   tableWrap: { background:'#fff', borderRadius:12, border:'1px solid #E5E7EB', boxShadow:'0 2px 8px rgba(0,0,0,0.05)', overflow:'hidden' },
