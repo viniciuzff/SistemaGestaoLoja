@@ -9,7 +9,7 @@ import Clientes  from './pages/Clientes'
 import Produtos  from './pages/Produtos'
 import Vendas    from './pages/Vendas'
 import Estoque   from './pages/Estoque'
-import Perfil    from './pages/Perfil'
+import Perfil    from './pages/perfil'
 import Movimentacoes from './pages/Movimentacoes'
 
 function PrivateRoute({ children, user }) {

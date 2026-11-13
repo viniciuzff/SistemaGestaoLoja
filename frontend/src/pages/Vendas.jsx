@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import BotaoExportar from '../components/BotaoExportar'
 
 const api = cfg => axios({ withCredentials: true, ...cfg })
 const vazio = { cliente:'', produto_id:'', quantidade:1, pagamento:'Dinheiro', status:'Concluída', desconto:0 }
@@ -99,7 +100,7 @@ export default function Vendas() {
       </div>
 
       {/* FILTROS DE PERÍODO */}
-      <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+      <div style={{ display:'flex', gap:8, marginBottom:12, alignItems:'center' }}>
         {[
           { key:'todos',  label:'Todos' },
           { key:'hoje',   label:'Hoje' },
@@ -111,6 +112,21 @@ export default function Vendas() {
             onClick={() => setPeriodo(p.key)}
           >{p.label}</button>
         ))}
+          <div style={{ marginLeft:'auto' }}>
+    <BotaoExportar
+      dados={filtrados}
+      nomeArquivo="vendas"
+      colunas={[
+        { key:'id',        label:'ID' },
+        { key:'cliente',   label:'Cliente' },
+        { key:'data',      label:'Data' },
+        { key:'pagamento', label:'Pagamento' },
+        { key:'desconto',  label:'Desconto (%)' },
+        { key:'status',    label:'Status' },
+        { key:'total',     label:'Total (R$)', format: v => Number(v).toFixed(2).replace('.', ',') },
+      ]}
+    />
+  </div>
       </div>
 
       {/* BUSCA */}
